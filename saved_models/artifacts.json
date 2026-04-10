@@ -1,0 +1,33 @@
+{
+  "FEATURES": [
+    "home_elo_pre",
+    "away_elo_pre",
+    "elo_diff",
+    "neutral_num",
+    "tournament_weight",
+    "home_form",
+    "away_form",
+    "form_diff"
+  ],
+  "GOAL_FEATURES": [
+    "home_elo_pre",
+    "away_elo_pre",
+    "elo_diff",
+    "neutral_num",
+    "tournament_weight",
+    "home_form",
+    "away_form"
+  ],
+  "UPSET_FEATURES": [
+    "elo_gap",
+    "home_elo_pre",
+    "away_elo_pre",
+    "neutral_num",
+    "tournament_weight",
+    "home_form",
+    "away_form",
+    "form_diff"
+  ],
+  "best_model_name": "XGBoost",
+  "SPLIT_DATE": "2022-01-01"
+}
