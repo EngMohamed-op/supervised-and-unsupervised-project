@@ -3,71 +3,30 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LogisticRegression
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
-from sklearn.pipeline import Pipeline
-import xgboost as xgb
-import os
+import joblib
+import json
+import requests
+from io import BytesIO
+from PIL import Image
 import warnings
 warnings.filterwarnings('ignore')
 
-# ============================================================================
-# PAGE CONFIG
-# ============================================================================
 st.set_page_config(
     page_title="World Cup 2026 Prediction",
-    page_icon="NONE",
+    page_icon="house",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# ============================================================================
-# DARK THEME COLORS (From Colab)
-# ============================================================================
 BG_DARK = "#0d1117"
 BG_CARD = "#161b22"
 BORDER_COLOR = "#30363d"
-C_PRIMARY = "#2563EB"      # Blue - Home Win
-C_NEUTRAL = "#9CA3AF"      # Gray - Draw
-C_SECONDARY = "#F59E0B"    # Amber - Away Win
-C_ACCENT = "#00d4aa"       # Teal
-C_DANGER = "#EF4444"       # Red
-C_LIGHT = "#93C5FD"        # Light blue
-GOLD = "#D4AF37"
+C_PRIMARY = "#1f77b4"
+C_NEUTRAL = "#9CA3AF"
+C_SECONDARY = "#F59E0B"
+C_ACCENT = "#00d4aa"
 TEXT_WHITE = "#FFFFFF"
 
-# ============================================================================
-# TEAM FLAGS
-# ============================================================================
-TEAM_FLAGS = {
-    "Argentina": "ar", "Australia": "au", "Austria": "at", "Belgium": "be",
-    "Brazil": "br", "Cameroon": "cm", "Canada": "ca", "Colombia": "co",
-    "Croatia": "hr", "Denmark": "dk", "Ecuador": "ec", "Egypt": "eg",
-    "England": "gb-eng", "France": "fr", "Germany": "de", "Ghana": "gh",
-    "Iran": "ir", "Italy": "it", "Japan": "jp", "Mexico": "mx",
-    "Morocco": "ma", "Netherlands": "nl", "New Zealand": "nz", "Nigeria": "ng",
-    "Norway": "no", "Panama": "pa", "Paraguay": "py", "Poland": "pl",
-    "Portugal": "pt", "Qatar": "qa", "Saudi Arabia": "sa", "Senegal": "sn",
-    "Serbia": "rs", "South Korea": "kr", "Spain": "es", "Switzerland": "ch",
-    "Tunisia": "tn", "Turkey": "tr", "Uruguay": "uy", "USA": "us",
-    "Algeria": "dz", "Chile": "cl", "Scotland": "gb-sct", "Wales": "gb-wls",
-    "Ukraine": "ua", "Sweden": "se", "Iraq": "iq", "Jordan": "jo",
-    "South Africa": "za", "Czech Republic": "cz", "Bosnia-Herzegovina": "ba",
-    "Haiti": "ht", "Côte d'Ivoire": "ci", "Cabo Verde": "cv",
-    "Congo DR": "cd", "Uzbekistan": "uz",
-}
-
-def get_flag_url(team):
-    code = TEAM_FLAGS.get(team, "xx")
-    return f"https://flagcdn.com/w80/{code}.png"
-
-# ============================================================================
-# DARK THEME CSS
-# ============================================================================
 st.markdown(f"""
 <style>
     .stApp {{
@@ -78,14 +37,14 @@ st.markdown(f"""
     .main .block-container {{
         padding-top: 2rem;
         padding-bottom: 2rem;
-        max-width: 1200px;
+        max-width: 1600px;
     }}
     
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
     
-    h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown {{
+    h1, h2, h3, h4, h5, h6, p, span, label {{
         color: {TEXT_WHITE} !important;
     }}
     
@@ -94,339 +53,24 @@ st.markdown(f"""
         padding-bottom: 10px;
     }}
     
-    .dashboard-card {{
-        background: linear-gradient(145deg, {BG_CARD} 0%, #1a2332 100%);
-        border: 1px solid {BORDER_COLOR};
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
-        transition: all 0.3s ease;
-        height: 140px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }}
-    
-    .dashboard-card:hover {{
-        border-color: {C_PRIMARY};
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(37,99,235,0.2);
-    }}
-    
-    .card-title {{
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: {TEXT_WHITE};
-        margin-bottom: 0.5rem;
-    }}
-    
-    .card-desc {{
-        font-size: 0.85rem;
-        color: #888;
-    }}
-    
-    .stButton > button {{
-        background: linear-gradient(145deg, {C_PRIMARY} 0%, #1d4ed8 100%);
-        color: {TEXT_WHITE};
-        border: none;
-        border-radius: 8px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }}
-    
-    .stButton > button:hover {{
-        background: linear-gradient(145deg, #3b82f6 0%, {C_PRIMARY} 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(37,99,235,0.4);
-    }}
-    
-    section[data-testid="stSidebar"] {{
-        background: linear-gradient(180deg, {BG_DARK} 0%, {BG_CARD} 100%);
-        border-right: 1px solid {BORDER_COLOR};
-    }}
-    
-    .result-card {{
-        background: {BG_CARD};
-        border: 1px solid {BORDER_COLOR};
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
-    }}
-    
-    .winner-card {{
-        background: linear-gradient(145deg, {BG_CARD} 0%, #1a2332 100%);
-        border: 2px solid {C_PRIMARY};
-        border-radius: 12px;
-        padding: 2rem;
-        text-align: center;
-        box-shadow: 0 8px 30px rgba(37,99,235,0.3);
-    }}
-    
-    .stSelectbox > div > div {{
-        background-color: {BG_CARD};
-        border: 1px solid {BORDER_COLOR};
-        border-radius: 8px;
-    }}
-    
-    [data-testid="stMetricValue"] {{
-        color: {C_PRIMARY} !important;
-        font-size: 2rem !important;
-    }}
-    
     hr {{
         border: none;
         height: 1px;
         background: linear-gradient(90deg, {BG_CARD}, {BORDER_COLOR}, {BG_CARD});
-        margin: 1.5rem 0;
+        margin: 2rem 0;
     }}
     
-    .home-title {{
-        font-size: 2.8rem;
-        font-weight: 800;
-        color: {TEXT_WHITE};
-        text-align: center;
-        margin: 1rem 0;
-        letter-spacing: 3px;
+    .stButton > button {{
+        background-color: {C_PRIMARY} !important;
+        color: white !important;
     }}
     
-    .home-subtitle {{
-        font-size: 1.2rem;
-        color: {C_PRIMARY};
-        text-align: center;
-        margin-bottom: 2rem;
-    }}
-    
-    .stat-box {{
-        background: {BG_CARD};
-        border: 1px solid {C_PRIMARY};
-        border-radius: 12px;
-        padding: 1.2rem 1.5rem;
-        text-align: center;
-    }}
-    
-    .stat-number {{
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: {C_PRIMARY};
-    }}
-    
-    .stat-label {{
-        font-size: 0.9rem;
-        color: #888;
-        margin-top: 0.3rem;
+    .stButton > button:hover {{
+        background-color: #1557a0 !important;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-
-# ============================================================================
-# K-FACTOR (From Colab - EXACT)
-# ============================================================================
-def get_k_factor(tournament):
-    """Tournament importance - EXACT from Colab"""
-    if 'FIFA World Cup' in tournament and 'Qualification' not in tournament:
-        return 60
-    if any(t in tournament for t in ['Euro', 'Copa América', 'Asian Cup',
-                                      'Africa Cup', 'Gold Cup', 'Nations League']):
-        return 40
-    if 'Qualification' in tournament:
-        return 30
-    return 20
-
-
-# ============================================================================
-# DATA GENERATION (Simulates Colab's Elo Engine Output)
-# ============================================================================
-@st.cache_data
-def load_elo_snapshot():
-    """Elo ratings snapshot - matches Colab output exactly"""
-    elo_data = {
-        'Spain': 1111.70, 'Argentina': 1044.69, 'France': 1020.23, 'England': 1010.79,
-        'Colombia': 945.35, 'Ecuador': 934.53, 'Norway': 917.44, 'Brazil': 909.27,
-        'Netherlands': 904.96, 'Portugal': 899.15, 'Croatia': 886.87, 'Japan': 875.13,
-        'Uruguay': 872.79, 'Germany': 870.48, 'Paraguay': 870.05, 'Morocco': 844.06,
-        'Switzerland': 843.07, 'Turkey': 826.24, 'Mexico': 821.11, 'Senegal': 816.06,
-        'Belgium': 811.60, 'Denmark': 807.44, 'Australia': 791.16, 'Italy': 788.27,
-        'Canada': 770.94, 'Scotland': 769.76, 'Ukraine': 767.58, 'Austria': 746.29,
-        'Algeria': 721.19, 'Uzbekistan': 720.08, 'Poland': 711.83, 'Tunisia': 692.50,
-        'Panama': 682.89, 'Serbia': 682.80, 'Chile': 680.06, 'Nigeria': 678.29,
-        'Jordan': 669.34, 'Iraq': 660.17, 'Egypt': 649.45, 'Hungary': 641.94,
-        'Côte d\'Ivoire': 630.73, 'Haiti': 624.71, 'Saudi Arabia': 596.19,
-        'Cabo Verde': 575.55, 'Cameroon': 569.24, 'Ghana': 564.69, 'South Africa': 507.45,
-        'New Zealand': 608.89, 'Sweden': 552.28, 'Congo DR': 626.09, 'USA': 780.00,
-        'Qatar': 448.43, 'South Korea': 600.00, 'Czech Republic': 600.00,
-        'Bosnia-Herzegovina': 544.19, 'Iran': 600.00, 'Curaçao': 400.00,
-    }
-    return pd.DataFrame(list(elo_data.items()), columns=['team', 'elo_2026'])
-
-
-@st.cache_data
-def load_form_dict():
-    """Form scores - pre-computed like Colab"""
-    form_data = {
-        'Spain': 0.69, 'Argentina': 0.61, 'France': 0.62, 'England': 0.61,
-        'Brazil': 0.63, 'Netherlands': 0.61, 'Portugal': 0.59, 'Germany': 0.59,
-        'Croatia': 0.55, 'Belgium': 0.55, 'Colombia': 0.46, 'Uruguay': 0.45,
-        'Japan': 0.58, 'Morocco': 0.56, 'Senegal': 0.56, 'USA': 0.55,
-        'Mexico': 0.55, 'Canada': 0.41, 'Australia': 0.54, 'South Korea': 0.50,
-        'Switzerland': 0.47, 'Denmark': 0.50, 'Italy': 0.53, 'Turkey': 0.48,
-        'Austria': 0.43, 'Poland': 0.49, 'Serbia': 0.43, 'Ecuador': 0.38,
-        'Paraguay': 0.32, 'Nigeria': 0.50, 'Egypt': 0.58, 'Algeria': 0.54,
-        'Tunisia': 0.47, 'Ghana': 0.43, 'Cameroon': 0.44, 'Iran': 0.45,
-        'Saudi Arabia': 0.47, 'Qatar': 0.45, 'New Zealand': 0.40, 'Panama': 0.39,
-        'Norway': 0.47, 'Sweden': 0.47, 'Scotland': 0.42, 'Iraq': 0.41,
-        'Jordan': 0.43, 'South Africa': 0.43, 'Haiti': 0.37, 'Cabo Verde': 0.42,
-        'Congo DR': 0.37, 'Uzbekistan': 0.51, 'Côte d\'Ivoire': 0.53,
-        'Czech Republic': 0.45, 'Bosnia-Herzegovina': 0.39, 'Curaçao': 0.30,
-        'Chile': 0.43, 'Ukraine': 0.47, 'Hungary': 0.42,
-    }
-    return form_data
-
-
-@st.cache_data
-def generate_matches_data():
-    """Generate training matches - simulates Colab's final_training_data"""
-    np.random.seed(42)
-    elo_snap = load_elo_snapshot()
-    elo_dict = dict(zip(elo_snap['team'], elo_snap['elo_2026']))
-    teams = list(elo_dict.keys())
-    
-    matches = []
-    for _ in range(500):
-        home = np.random.choice(teams)
-        away = np.random.choice([t for t in teams if t != home])
-        
-        home_elo = elo_dict[home]
-        away_elo = elo_dict[away]
-        elo_diff = home_elo - away_elo
-        
-        # Elo probability
-        exp_h = 1 / (1 + 10 ** ((away_elo - home_elo - 100) / 400))
-        
-        rand = np.random.random()
-        if rand < exp_h * 0.75:
-            hs, aws, res = np.random.randint(1, 4), np.random.randint(0, 2), 2
-        elif rand < exp_h * 0.75 + 0.22:
-            hs = aws = np.random.randint(0, 3)
-            res = 1
-        else:
-            aws, hs, res = np.random.randint(1, 4), np.random.randint(0, 2), 0
-        
-        matches.append({
-            'home_team': home, 'away_team': away,
-            'home_score': hs, 'away_score': aws,
-            'home_elo_pre': home_elo, 'away_elo_pre': away_elo,
-            'elo_diff': elo_diff, 'result': res,
-            'neutral': np.random.choice([True, False], p=[0.3, 0.7]),
-            'tournament': np.random.choice(['FIFA World Cup', 'Friendly', 'Qualification']),
-        })
-    
-    df = pd.DataFrame(matches)
-    df['total_goals'] = df['home_score'] + df['away_score']
-    df['result_label'] = df['result'].map({2: 'Home Win', 1: 'Draw', 0: 'Away Win'})
-    df['neutral_num'] = df['neutral'].astype(int)
-    df['tournament_weight'] = df['tournament'].apply(get_k_factor)
-    
-    # Add form
-    form_dict = load_form_dict()
-    df['home_form'] = df['home_team'].map(lambda x: form_dict.get(x, 0.5))
-    df['away_form'] = df['away_team'].map(lambda x: form_dict.get(x, 0.5))
-    df['form_diff'] = df['home_form'] - df['away_form']
-    
-    return df
-
-
-# ============================================================================
-# ML MODELS (EXACT from Colab)
-# ============================================================================
-@st.cache_resource
-def train_match_classifier():
-    """Train XGBoost classifier - EXACT from Colab Section 2"""
-    df = generate_matches_data()
-    
-    FEATURES = ['home_elo_pre', 'away_elo_pre', 'elo_diff',
-                'neutral_num', 'tournament_weight',
-                'home_form', 'away_form', 'form_diff']
-    
-    X = df[FEATURES]
-    y = df['result']
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # XGBoost - same params as Colab
-    model = xgb.XGBClassifier(
-        n_estimators=300,
-        max_depth=6,
-        learning_rate=0.05,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        eval_metric='mlogloss',
-        random_state=42
-    )
-    model.fit(X_train, y_train)
-    
-    y_pred = model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    
-    return model, acc, f1, FEATURES
-
-
-def predict_match_ml(model, features, home_elo, away_elo, home_form=0.5, away_form=0.5,
-                     neutral=True, tournament='FIFA World Cup'):
-    """ML prediction - EXACT from Colab"""
-    t_weight = get_k_factor(tournament)
-    elo_diff = home_elo - away_elo
-    form_diff = home_form - away_form
-    
-    X = pd.DataFrame(
-        [[home_elo, away_elo, elo_diff, int(neutral), t_weight, home_form, away_form, form_diff]],
-        columns=features
-    )
-    return model.predict_proba(X)[0]  # [P(away), P(draw), P(home)]
-
-
-# ============================================================================
-# CLUSTERING (EXACT from Colab Section 3, Model 2)
-# ============================================================================
-@st.cache_data
-def cluster_teams():
-    """KMeans clustering - EXACT logic from Colab Section 3"""
-    elo_snap = load_elo_snapshot()
-    df = elo_snap.copy()
-    
-    # Win rates from Colab
-    win_rates = {
-        'Spain': 0.69, 'Argentina': 0.61, 'France': 0.62, 'England': 0.61,
-        'Brazil': 0.63, 'Netherlands': 0.61, 'Portugal': 0.59, 'Germany': 0.59,
-        'Colombia': 0.46, 'Ecuador': 0.38, 'Norway': 0.47, 'Uruguay': 0.45,
-    }
-    df['win_rate'] = df['team'].map(lambda x: win_rates.get(x, 0.45))
-    
-    # Scale and cluster using the 2 features: Elo and Win Rate
-    scaler = StandardScaler()
-    features_scaled = scaler.fit_transform(df[['elo_2026', 'win_rate']])
-    
-    # K-Means with 3 clusters
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-    df['cluster'] = kmeans.fit_predict(features_scaled)
-    
-    # Map clusters to Tiers based on mean Elo
-    cluster_means = df.groupby('cluster')['elo_2026'].mean().sort_values(ascending=False)
-    tier_map = {cluster_means.index[0]: 'Strong', 
-                cluster_means.index[1]: 'Medium', 
-                cluster_means.index[2]: 'Weak'}
-    df['tier'] = df['cluster'].map(tier_map)
-    
-    return df
-
-
-# ============================================================================
-# WORLD CUP SIMULATION (EXACT from Colab Section 6)
-# ============================================================================
-
-# Official 2026 Groups - EXACT from Colab
 WC2026_GROUPS = {
     'A': ['Mexico', 'South Korea', 'South Africa', 'Czech Republic'],
     'B': ['Canada', 'Bosnia-Herzegovina', 'Qatar', 'Switzerland'],
@@ -442,377 +86,400 @@ WC2026_GROUPS = {
     'L': ['England', 'Croatia', 'Ghana', 'Panama'],
 }
 
+@st.cache_resource
+def load_data():
+    try:
+        elo_df = pd.read_csv("elo_snapshot_clustered.csv")
+        if elo_df.empty:
+            raise ValueError("elo_snapshot_clustered.csv is empty")
+        
+        with open("form_dict.json", 'r') as f:
+            form_dict = json.load(f)
+        
+        classifier = joblib.load("best_classifier.pkl")
+        
+        return elo_df, form_dict, classifier
+    
+    except FileNotFoundError as e:
+        st.error(f"Error: File not found - {str(e)}")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        st.stop()
 
-def run_simulation(n_simulations, model, features):
-    """Monte Carlo simulation - EXACT from Colab"""
-    elo_snap = load_elo_snapshot()
-    ELO_DICT = dict(zip(elo_snap['team'], elo_snap['elo_2026']))
-    _ELO_AVG = float(elo_snap['elo_2026'].mean())
-    FORM_DICT = load_form_dict()
+elo_df, form_dict, classifier = load_data()
+
+team_elo_dict = dict(zip(elo_df['team'], elo_df['elo_2026']))
+team_form_dict = form_dict
+
+def get_flag_code(team):
+    TEAM_FLAGS = {
+        "Argentina": "ar",
+        "Australia": "au",
+        "Austria": "at",
+        "Belgium": "be",
+        "Brazil": "br",
+        "Cameroon": "cm",
+        "Canada": "ca",
+        "Colombia": "co",
+        "Croatia": "hr",
+        "Denmark": "dk",
+        "Ecuador": "ec",
+        "Egypt": "eg",
+        "England": "gb-eng",
+        "France": "fr",
+        "Germany": "de",
+        "Ghana": "gh",
+        "Iran": "ir",
+        "Italy": "it",
+        "Japan": "jp",
+        "Mexico": "mx",
+        "Morocco": "ma",
+        "Netherlands": "nl",
+        "New Zealand": "nz",
+        "Nigeria": "ng",
+        "Norway": "no",
+        "Panama": "pa",
+        "Paraguay": "py",
+        "Poland": "pl",
+        "Portugal": "pt",
+        "Qatar": "qa",
+        "Saudi Arabia": "sa",
+        "Senegal": "sn",
+        "Serbia": "rs",
+        "South Korea": "kr",
+        "Spain": "es",
+        "Switzerland": "ch",
+        "Tunisia": "tn",
+        "Turkey": "tr",
+        "Uruguay": "uy",
+        "USA": "us",
+        "Algeria": "dz",
+        "Chile": "cl",
+        "Scotland": "gb-sct",
+        "Wales": "gb-wls",
+        "Ukraine": "ua",
+        "Sweden": "se",
+        "Iraq": "iq",
+        "Jordan": "jo",
+        "South Africa": "za",
+        "Czech Republic": "cz",
+        "Bosnia-Herzegovina": "ba",
+        "Haiti": "ht",
+        "Côte d'Ivoire": "ci",
+        "Cabo Verde": "cv",
+        "Congo DR": "cd",
+        "Uzbekistan": "uz",
+        "Curaçao": "cw",
+    }
+    return TEAM_FLAGS.get(team, "xx")
+
+def get_team_features(team_name):
+    elo = team_elo_dict.get(team_name, 800)
+    form = team_form_dict.get(team_name, 0.5)
+    return {'elo': elo, 'form': form}
+
+def predict_match(team1, team2):
+    team1_features = get_team_features(team1)
+    team2_features = get_team_features(team2)
     
-    def get_team_elo(team):
-        return ELO_DICT.get(team, _ELO_AVG)
+    X = np.array([[
+        team1_features['elo'],
+        team2_features['elo'],
+        team1_features['form'],
+        team2_features['form']
+    ]])
     
-    def get_team_form(team):
-        return FORM_DICT.get(team, 0.5)
-    
-    def get_shootout_winner(team1, team2):
-        # Simplified shootout - 50/50
-        return np.random.choice([team1, team2])
-    
-    def simulate_match(team1, team2, knockout=False):
-        elo1, elo2 = get_team_elo(team1), get_team_elo(team2)
-        form1, form2 = get_team_form(team1), get_team_form(team2)
+    try:
+        proba = classifier.predict_proba(X)[0]
+        prediction = classifier.predict(X)[0]
         
-        probs = predict_match_ml(model, features, elo1, elo2, form1, form2,
-                                  neutral=True, tournament='FIFA World Cup')
-        probs = np.array(probs, dtype=np.float64)
-        probs /= probs.sum()
+        proba = np.array(proba, dtype=np.float64)
+        proba = proba / proba.sum()
         
-        p_away, p_draw, p_home = probs[0], probs[1], probs[2]
-        outcome = np.random.choice([2, 1, 0], p=[p_home, p_draw, p_away])
-        
-        if outcome == 2:
-            return team1, 3, 0
-        elif outcome == 0:
-            return team2, 0, 3
+        if prediction == 0:
+            winner = team1
+            team1_prob = float(proba[0])
+            team2_prob = float(proba[1])
         else:
-            if knockout:
-                return get_shootout_winner(team1, team2), None, None
-            return None, 1, 1
+            winner = team2
+            team1_prob = float(proba[0])
+            team2_prob = float(proba[1])
+        
+        return winner, team1_prob, team2_prob
     
-    def simulate_group(teams):
-        standings = {t: {'pts': 0, 'gd': 0, 'gf': 0} for t in teams}
-        for i in range(len(teams)):
-            for j in range(i + 1, len(teams)):
-                h, a = teams[i], teams[j]
-                winner, pts_h, pts_a = simulate_match(h, a, knockout=False)
-                
-                if winner is None:
-                    standings[h]['pts'] += 1
-                    standings[a]['pts'] += 1
-                elif winner == h:
-                    standings[h]['pts'] += 3
-                else:
-                    standings[a]['pts'] += 3
-                
-                diff_ratio = (get_team_elo(h) - get_team_elo(a)) / 400
-                hg = max(0, int(round(1.5 + diff_ratio * 0.5)))
-                ag = max(0, int(round(1.2 - diff_ratio * 0.5)))
-                standings[h]['gf'] += hg
-                standings[a]['gf'] += ag
-                standings[h]['gd'] += (hg - ag)
-                standings[a|'gd'] += (ag - hg)
-        
-        ranked = sorted(teams, key=lambda t: (-standings[t]['pts'],
-                                               -standings[t]['gd'],
-                                               -standings[t]['gf']))
-        return ranked, standings
-    
-    def run_tournament():
-        group_winners, group_runners, group_thirds = [], [], []
-        
-        for grp, teams in WC2026_GROUPS.items():
-            ranked, standings = simulate_group(teams)
-            group_winners.append(ranked[0])
-            group_runners.append(ranked[1])
-            group_thirds.append((ranked[2], standings[ranked[2]]['pts'], standings[ranked[2]]['gd']))
-        
-        group_thirds.sort(key=lambda x: (-x[1], -x[2]))
-        best_thirds = [t[0] for t in group_thirds[:8]]
-        
-        r32_teams = group_winners + group_runners + best_thirds
-        np.random.shuffle(r32_teams)
-        
-        current_round = r32_teams[:]
-        for _ in ['R32', 'R16', 'QF']:
-            next_round = []
-            np.random.shuffle(current_round)
-            for k in range(0, len(current_round), 2):
-                if k + 1 < len(current_round):
-                    winner, _, _ = simulate_match(current_round[k], current_round[k+1], knockout=True)
-                    next_round.append(winner)
-            current_round = next_round
-        
-        sf_teams = current_round[:]
-        np.random.shuffle(sf_teams)
-        finalists = []
-        for k in range(0, len(sf_teams), 2):
-            if k + 1 < len(sf_teams):
-                winner, _, _ = simulate_match(sf_teams[k], sf_teams[k+1], knockout=True)
-                finalists.append(winner)
-        
-        if len(finalists) >= 2:
-            champion, _, _ = simulate_match(finalists[0], finalists[1], knockout=True)
-            return champion
-        
-        return finalists[0] if finalists else None
-    
-    # Run Monte Carlo
-    win_counts = {}
-    progress = st.progress(0)
-    
-    for sim in range(n_simulations):
-        champion = run_tournament()
-        if champion:
-            win_counts[champion] = win_counts.get(champion, 0) + 1
-        
-        if sim % 50 == 0:
-            progress.progress((sim + 1) / n_simulations)
-    
-    progress.progress(1.0)
-    
-    probs = {t: c / n_simulations for t, c in win_counts.items()}
-    probs = dict(sorted(probs.items(), key=lambda x: -x[1]))
-    
-    return probs
-
-# ============================================================================
-# NEW: FULL PATH SIMULATION (WhatsApp Style) - FIXED BUG
-# ============================================================================
-def run_tournament_with_path(model, features):
-    """Simulates a full tournament path and formats it as the requested image"""
-    elo_snap = load_elo_snapshot()
-    ELO_DICT = dict(zip(elo_snap['team'], elo_snap['elo_2026']))
-    FORM_DICT = load_form_dict()
-    
-    def get_team_elo(team): return ELO_DICT.get(team, 700)
-    def get_team_form(team): return FORM_DICT.get(team, 0.5)
-
-    def simulate_match_internal(team1, team2):
-        # GET PREDICTIONS
-        probs_raw = predict_match_ml(model, features, get_team_elo(team1), get_team_elo(team2), 
-                                     get_team_form(team1), get_team_form(team2))
-        
-        # MAPPING: [Away Win, Draw, Home Win]
-        p_away, p_draw, p_home = probs_raw[0], probs_raw[1], probs_raw[2]
-        
-        # FIXED: CRITICAL NORMALIZATION FOR NUMPY PRECISION
-        probs = np.array([p_home, p_draw, p_away], dtype=np.float64)
-        probs /= probs.sum() # ENSURES SUM IS EXACTLY 1.0
-        
-        outcome = np.random.choice([2, 1, 0], p=probs)
-        
-        if outcome == 2: return team1
-        if outcome == 0: return team2
-        return np.random.choice([team1, team2]) # Penalty shootout
-
-    log = []
-
-    # 1. Group Stage (Simulated quickly for the path)
-    group_winners, group_runners, group_thirds = [], [], []
-    for grp, teams in WC2026_GROUPS.items():
-        pts = {t: 0 for t in teams}
-        for i in range(len(teams)):
-            for j in range(i+1, len(teams)):
-                w = simulate_match_internal(teams[i], teams[j])
-                pts[w] += 3
-        ranked = sorted(teams, key=lambda x: -pts[x])
-        group_winners.append(ranked[0])
-        group_runners.append(ranked[1])
-        group_thirds.append((ranked[2], pts[ranked[2]]))
-
-    best_thirds = [t[0] for t in sorted(group_thirds, key=lambda x: -x[1])[:8]]
-    log.append(f"✓ Best 8 Third-place teams qualifying: {', '.join(best_thirds)}")
-    
-    # 2. Round of 32
-    r32_teams = group_winners + group_runners + best_thirds
-    np.random.shuffle(r32_teams)
-    log.append("\n--- ROUND OF 32 ---")
-    r16_teams = []
-    for i in range(0, 32, 2):
-        t1, t2 = r32_teams[i], r32_teams[i+1]
-        winner = simulate_match_internal(t1, t2)
-        log.append(f"{t1.rjust(15)}  vs  {t2.ljust(15)}  → Winner: {winner}")
-        r16_teams.append(winner)
-
-    # 3. Round of 16
-    log.append("\n--- ROUND OF 16 ---")
-    qf_teams = []
-    for i in range(0, 16, 2):
-        t1, t2 = r16_teams[i], r16_teams[i+1]
-        winner = simulate_match_internal(t1, t2)
-        log.append(f"{t1.rjust(15)}  vs  {t2.ljust(15)}  → Winner: {winner}")
-        qf_teams.append(winner)
-
-    # 4. Quarter-Finals
-    log.append("\n--- QUARTER-FINALS ---")
-    sf_teams = []
-    for i in range(0, 8, 2):
-        t1, t2 = qf_teams[i], qf_teams[i+1]
-        winner = simulate_match_internal(t1, t2)
-        log.append(f"{t1.rjust(15)}  vs  {t2.ljust(15)}  → Winner: {winner}")
-        sf_teams.append(winner)
-
-    # 5. Semi-Finals
-    log.append("\n--- SEMI-FINALS ---")
-    finalists = []
-    for i in range(0, 4, 2):
-        t1, t2 = sf_teams[i], sf_teams[i+1]
-        winner = simulate_match_internal(t1, t2)
-        log.append(f"{t1.rjust(15)}  vs  {t2.ljust(15)}  → Winner: {winner}")
-        finalists.append(winner)
-
-    # 6. Final
-    log.append("\n" + "*"*20 + " THE FINAL " + "*"*20)
-    winner = simulate_match_internal(finalists[0], finalists[1])
-    log.append(f"\n{finalists[0]}  VS  {finalists[1]}")
-    log.append(f"\n THE CHAMPION OF THE WORLD IS: {winner.upper()} ")
-    log.append("="*50)
-
-    return "\n".join(log)
-
-# ============================================================================
-# DISPLAY FUNCTIONS
-# ============================================================================
-
-def display_fifa_logo(width=300):
-    """Display FIFA logo - LOCAL FILE with fallback"""
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        logo_path = os.path.join("assets", "fifa.jpg")
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=width)
+    except Exception as e:
+        if team1_features['elo'] > team2_features['elo']:
+            return team1, 0.55, 0.45
         else:
-            # Fallback
-            st.markdown(f"""
-            <div style="text-align: center; padding: 2rem;">
-                <div style="font-size: 4rem;">⚽🏆</div>
-            </div>
-            """, unsafe_allow_html=True)
+            return team2, 0.45, 0.55
 
+def simulate_full_bracket(group_winners):
+    bracket = {
+        'round_of_32': [],
+        'round_of_16': [],
+        'quarter_finals': [],
+        'semi_finals': [],
+        'final': []
+    }
+    
+    for i in range(0, len(group_winners), 2):
+        team1 = group_winners[i]
+        team2 = group_winners[i + 1]
+        winner, prob1, prob2 = predict_match(team1, team2)
+        
+        bracket['round_of_32'].append({
+            'team1': team1,
+            'team2': team2,
+            'winner': winner,
+            'prob1': prob1,
+            'prob2': prob2
+        })
+    
+    round_16_teams = [match['winner'] for match in bracket['round_of_32']]
+    for i in range(0, len(round_16_teams), 2):
+        team1 = round_16_teams[i]
+        team2 = round_16_teams[i + 1]
+        winner, prob1, prob2 = predict_match(team1, team2)
+        
+        bracket['round_of_16'].append({
+            'team1': team1,
+            'team2': team2,
+            'winner': winner,
+            'prob1': prob1,
+            'prob2': prob2
+        })
+    
+    qf_teams = [match['winner'] for match in bracket['round_of_16']]
+    for i in range(0, len(qf_teams), 2):
+        team1 = qf_teams[i]
+        team2 = qf_teams[i + 1]
+        winner, prob1, prob2 = predict_match(team1, team2)
+        
+        bracket['quarter_finals'].append({
+            'team1': team1,
+            'team2': team2,
+            'winner': winner,
+            'prob1': prob1,
+            'prob2': prob2
+        })
+    
+    sf_teams = [match['winner'] for match in bracket['quarter_finals']]
+    for i in range(0, len(sf_teams), 2):
+        team1 = sf_teams[i]
+        team2 = sf_teams[i + 1]
+        winner, prob1, prob2 = predict_match(team1, team2)
+        
+        bracket['semi_finals'].append({
+            'team1': team1,
+            'team2': team2,
+            'winner': winner,
+            'prob1': prob1,
+            'prob2': prob2
+        })
+    
+    final_teams = [match['winner'] for match in bracket['semi_finals']]
+    team1 = final_teams[0]
+    team2 = final_teams[1]
+    winner, prob1, prob2 = predict_match(team1, team2)
+    
+    bracket['final'].append({
+        'team1': team1,
+        'team2': team2,
+        'winner': winner,
+        'prob1': prob1,
+        'prob2': prob2
+    })
+    
+    return bracket
 
-# ============================================================================
-# PAGES
-# ============================================================================
+def render_match_box(team1, team2, winner, prob1, prob2):
+    code1 = get_flag_code(team1)
+    code2 = get_flag_code(team2)
+    flag1_url = f"https://flagcdn.com/w80/{code1}.png"
+    flag2_url = f"https://flagcdn.com/w80/{code2}.png"
+    
+    team1_win = "WINNER" if team1 == winner else ""
+    team2_win = "WINNER" if team2 == winner else ""
+    
+    html = f"""
+    <div style="background: linear-gradient(135deg, #161b22 0%, #1a2332 100%); border: 1px solid #30363d; border-radius: 6px; padding: 8px; margin: 3px 0; min-width: 160px; font-size: 10px;">
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 0;">
+            <img src="{flag1_url}" style="width: 24px; height: 16px; border-radius: 1px; flex-shrink: 0;" onerror="this.style.display='none'">
+            <span style="flex: 1; color: white; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px;">{team1}</span>
+            <span style="color: #888; font-size: 7px; min-width: 20px; text-align: right;">{prob1:.0%}</span>
+            <span style="color: #90EE90; font-size: 6px; font-weight: bold;">{team1_win}</span>
+        </div>
+        <div style="height: 1px; background: #30363d; margin: 4px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 0;">
+            <img src="{flag2_url}" style="width: 24px; height: 16px; border-radius: 1px; flex-shrink: 0;" onerror="this.style.display='none'">
+            <span style="flex: 1; color: white; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px;">{team2}</span>
+            <span style="color: #888; font-size: 7px; min-width: 20px; text-align: right;">{prob2:.0%}</span>
+            <span style="color: #90EE90; font-size: 6px; font-weight: bold;">{team2_win}</span>
+        </div>
+    </div>
+    """
+    return html
+
+def render_final_box(team1, team2, winner, prob1, prob2):
+    code1 = get_flag_code(team1)
+    code2 = get_flag_code(team2)
+    flag1_url = f"https://flagcdn.com/w80/{code1}.png"
+    flag2_url = f"https://flagcdn.com/w80/{code2}.png"
+    
+    team1_win = "WINNER" if team1 == winner else ""
+    team2_win = "WINNER" if team2 == winner else ""
+    
+    html = f"""
+    <div style="background: linear-gradient(135deg, #161b22 0%, #3a3000 100%); border: 2px solid #FFD700; border-radius: 8px; padding: 10px; min-width: 180px; font-size: 11px; box-shadow: 0 4px 12px rgba(255,215,0,0.3); text-align: center;">
+        <div style="color: #FFD700; font-weight: bold; margin-bottom: 8px; font-size: 9px; text-transform: uppercase;">FINAL</div>
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 0;">
+            <img src="{flag1_url}" style="width: 24px; height: 16px; border-radius: 1px; flex-shrink: 0;" onerror="this.style.display='none'">
+            <span style="flex: 1; color: white; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px; text-align: left;">{team1}</span>
+            <span style="color: #888; font-size: 7px; min-width: 20px; text-align: right;">{prob1:.0%}</span>
+            <span style="color: #90EE90; font-size: 6px; font-weight: bold;">{team1_win}</span>
+        </div>
+        <div style="height: 1px; background: #FFD700; margin: 5px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 0;">
+            <img src="{flag2_url}" style="width: 24px; height: 16px; border-radius: 1px; flex-shrink: 0;" onerror="this.style.display='none'">
+            <span style="flex: 1; color: white; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px; text-align: left;">{team2}</span>
+            <span style="color: #888; font-size: 7px; min-width: 20px; text-align: right;">{prob2:.0%}</span>
+            <span style="color: #90EE90; font-size: 6px; font-weight: bold;">{team2_win}</span>
+        </div>
+    </div>
+    """
+    return html
+
+def display_knockout_bracket(bracket):
+    st.markdown("### Tournament Bracket")
+    
+    r32_left = bracket['round_of_32'][:16]
+    r32_right = bracket['round_of_32'][16:]
+    
+    r16_left = bracket['round_of_16'][:8]
+    r16_right = bracket['round_of_16'][8:]
+    
+    qf_left = bracket['quarter_finals'][:4]
+    qf_right = bracket['quarter_finals'][4:]
+    
+    sf_left = bracket['semi_finals'][:1]
+    sf_right = bracket['semi_finals'][1:]
+    
+    final = bracket['final'][0]
+    
+    cols = st.columns([1.5, 1, 1, 0.8, 1, 0.8, 1, 1, 1.5])
+    
+    with cols[0]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R32</div>', unsafe_allow_html=True)
+        for match in r32_left:
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+            st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
+    
+    with cols[1]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R16</div>', unsafe_allow_html=True)
+        for i, match in enumerate(r16_left):
+            if i > 0:
+                st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[2]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">QF</div>', unsafe_allow_html=True)
+        for i, match in enumerate(qf_left):
+            if i > 0:
+                st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[3]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">SF</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 50px;"></div>', unsafe_allow_html=True)
+        for match in sf_left:
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[4]:
+        st.markdown('<div style="font-size: 10px; font-weight: bold; color: #FFD700; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">FINAL</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
+        html = render_final_box(final['team1'], final['team2'], final['winner'], final['prob1'], final['prob2'])
+        st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[5]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">SF</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 50px;"></div>', unsafe_allow_html=True)
+        for match in sf_right:
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[6]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">QF</div>', unsafe_allow_html=True)
+        for i, match in enumerate(qf_right):
+            if i > 0:
+                st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[7]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R16</div>', unsafe_allow_html=True)
+        for i, match in enumerate(r16_right):
+            if i > 0:
+                st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+    
+    with cols[8]:
+        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R32</div>', unsafe_allow_html=True)
+        for match in r32_right:
+            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
+            st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
 
 def home_page():
-    """Home Page - Clean and Centered"""
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    # Display FIFA Logo
-    display_fifa_logo(500)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Title
-    st.markdown("""
-    <h1 class="home-title">WORLD CUP WINNER PREDICTION</h1>
-    <p class="home-subtitle">AI-Powered Football Analytics • Machine Learning • Monte Carlo Simulation</p>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Start Button
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button(" START ANALYSIS", use_container_width=True):
-            st.session_state.page = "dashboard"
-            st.rerun()
+        try:
+            response = requests.get("https://toppng.com/uploads/preview/fifa-reveals-2026-world-cup-brand-logo-11717899905odpvrys9vo.webp", timeout=5)
+            if response.status_code == 200:
+                img = Image.open(BytesIO(response.content))
+                st.image(img, width=500)
+        except Exception as e:
+            pass
+    
+    st.markdown('<div style="font-size: 3rem; font-weight: 800; color: white; text-align: center; margin: 1rem 0; letter-spacing: 2px;">World Cup 2026 Winner Prediction</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size: 1.2rem; color: #1f77b4; text-align: center; margin-bottom: 3rem;">AI-Powered Tournament Analysis</div>', unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Stats
-    st.markdown(f"""
-    <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
-        <div class="stat-box">
-            <div class="stat-number">48</div>
-            <div class="stat-label">Teams</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number">12</div>
-            <div class="stat-label">Groups</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number">2026</div>
-            <div class="stat-label">Year</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align: center; color: #666; font-size: 0.9rem;">
-        United States • Canada • Mexico
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def dashboard_page():
-    """Dashboard with navigation cards"""
-    st.markdown("##  Dashboard")
-    st.markdown("---")
-    
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> EDA</div>
-            <div class="card-desc">Exploratory Data Analysis</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open EDA", key="eda_btn", use_container_width=True):
+    col_btn = st.columns([1, 1, 1])
+    with col_btn[1]:
+        if st.button("Start Analysis", use_container_width=True, type="primary"):
             st.session_state.page = "eda"
             st.rerun()
     
-    with c2:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> Match Prediction</div>
-            <div class="card-desc">Predict match outcomes</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open Prediction", key="pred_btn", use_container_width=True):
-            st.session_state.page = "prediction"
-            st.rerun()
+    st.markdown("<br><br>", unsafe_allow_html=True)
     
-    with c3:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> Goal Prediction</div>
-            <div class="card-desc">Expected scorelines</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open Goals", key="goals_btn", use_container_width=True):
-            st.session_state.page = "goals"
-            st.rerun()
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    c4, c5, c6 = st.columns(3)
-    
-    with c4:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> Clustering</div>
-            <div class="card-desc">Team tier analysis</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open Clustering", key="clust_btn", use_container_width=True):
-            st.session_state.page = "clustering"
-            st.rerun()
-    
-    with c5:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> World Cup Simulation</div>
-            <div class="card-desc">Monte Carlo tournament</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open Simulation", key="sim_btn", use_container_width=True):
-            st.session_state.page = "simulation"
-            st.rerun()
-    
-    with c6:
-        st.markdown(f"""<div class="dashboard-card">
-            <div class="card-title"> Model Metrics</div>
-            <div class="card-desc">Performance evaluation</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button("Open Metrics", key="metrics_btn", use_container_width=True):
-            st.session_state.page = "metrics"
-            st.rerun()
-
+    st.markdown("""
+    <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+        <div style="background: #161b22; border: 1px solid #1f77b4; border-radius: 12px; padding: 1.5rem; text-align: center;">
+            <div style="font-size: 2.5rem; font-weight: 800; color: #1f77b4;">48</div>
+            <div style="font-size: 0.9rem; color: #888; margin-top: 0.3rem;">Teams</div>
+        </div>
+        <div style="background: #161b22; border: 1px solid #1f77b4; border-radius: 12px; padding: 1.5rem; text-align: center;">
+            <div style="font-size: 2.5rem; font-weight: 800; color: #1f77b4;">12</div>
+            <div style="font-size: 0.9rem; color: #888; margin-top: 0.3rem;">Groups</div>
+        </div>
+        <div style="background: #161b22; border: 1px solid #1f77b4; border-radius: 12px; padding: 1.5rem; text-align: center;">
+            <div style="font-size: 2.5rem; font-weight: 800; color: #1f77b4;">64</div>
+            <div style="font-size: 0.9rem; color: #888; margin-top: 0.3rem;">Matches</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def eda_page():
-    """EDA Page - Charts from Colab"""
-    st.markdown("##  Exploratory Data Analysis")
+    st.markdown("## Exploratory Data Analysis")
     st.markdown("---")
     
-    df = generate_matches_data()
-    elo_snap = load_elo_snapshot()
-    
-    # Set dark style
     plt.style.use('dark_background')
     plt.rcParams.update({
         'figure.facecolor': BG_DARK,
@@ -825,37 +492,12 @@ def eda_page():
     c1, c2 = st.columns(2)
     
     with c1:
-        st.markdown("### Match Outcome Distribution")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        fig.patch.set_facecolor(BG_DARK)
-        ax.set_facecolor(BG_CARD)
-        
-        outcomes = df['result_label'].value_counts()
-        colors = {'Home Win': C_PRIMARY, 'Draw': C_NEUTRAL, 'Away Win': C_SECONDARY}
-        bars = ax.bar(outcomes.index, outcomes.values, 
-                     color=[colors[x] for x in outcomes.index], 
-                     edgecolor='white', width=0.6)
-        
-        for bar in bars:
-            h = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2, h + 3, 
-                   f'{h/len(df)*100:.1f}%', ha='center', color='white', fontweight='bold')
-        
-        ax.set_ylabel('Matches', color='white')
-        ax.set_title('Result Distribution', color='white', pad=10)
-        for spine in ax.spines.values():
-            spine.set_color(BORDER_COLOR)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-    
-    with c2:
         st.markdown("### Top 15 Teams by Elo")
         fig, ax = plt.subplots(figsize=(8, 5))
         fig.patch.set_facecolor(BG_DARK)
         ax.set_facecolor(BG_CARD)
         
-        top15 = elo_snap.nlargest(15, 'elo_2026').sort_values('elo_2026')
+        top15 = elo_df.nlargest(15, 'elo_2026').sort_values('elo_2026')
         colors = [C_PRIMARY if e > 900 else C_ACCENT if e > 800 else C_NEUTRAL 
                   for e in top15['elo_2026']]
         
@@ -873,43 +515,17 @@ def eda_page():
         st.pyplot(fig)
         plt.close()
     
-    st.markdown("---")
-    
-    c3, c4 = st.columns(2)
-    
-    with c3:
-        st.markdown("### Goals per Match")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        fig.patch.set_facecolor(BG_DARK)
-        ax.set_facecolor(BG_CARD)
-        
-        ax.hist(df['total_goals'], bins=range(0, 10), alpha=0.8, 
-               color=C_PRIMARY, edgecolor='white', align='left')
-        
-        mean_goals = df['total_goals'].mean()
-        ax.axvline(mean_goals, color=C_SECONDARY, linestyle='--', 
-                  linewidth=2, label=f'Mean: {mean_goals:.2f}')
-        
-        ax.set_xlabel('Total Goals', color='white')
-        ax.set_ylabel('Frequency', color='white')
-        ax.legend(facecolor=BG_CARD, edgecolor=BORDER_COLOR, labelcolor='white')
-        for spine in ax.spines.values():
-            spine.set_color(BORDER_COLOR)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-    
-    with c4:
+    with c2:
         st.markdown("### Elo Distribution")
         fig, ax = plt.subplots(figsize=(8, 5))
         fig.patch.set_facecolor(BG_DARK)
         ax.set_facecolor(BG_CARD)
         
-        ax.hist(elo_snap['elo_2026'], bins=20, alpha=0.8, 
+        ax.hist(elo_df['elo_2026'], bins=20, alpha=0.8, 
                color=C_ACCENT, edgecolor='white')
         
-        ax.axvline(elo_snap['elo_2026'].mean(), color=C_DANGER, linestyle='--', 
-                  linewidth=2, label=f'Mean: {elo_snap["elo_2026"].mean():.0f}')
+        ax.axvline(elo_df['elo_2026'].mean(), color=C_SECONDARY, linestyle='--', 
+                  linewidth=2, label=f'Mean: {elo_df["elo_2026"].mean():.0f}')
         
         ax.set_xlabel('Elo Rating', color='white')
         ax.set_ylabel('Teams', color='white')
@@ -920,144 +536,140 @@ def eda_page():
         st.pyplot(fig)
         plt.close()
     
-    st.markdown("---")
-    st.markdown("### Summary Statistics")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Matches", len(df))
-    m2.metric("Avg Goals/Match", f"{df['total_goals'].mean():.2f}")
-    m3.metric("Home Win %", f"{(df['result']==2).mean()*100:.1f}%")
-    m4.metric("Teams Analyzed", len(elo_snap))
-
-
-def prediction_page():
-    """Match Prediction Page"""
-    st.markdown("##  Match Prediction")
-    st.markdown("---")
+    c3, c4 = st.columns(2)
     
-    model, acc, f1, features = train_match_classifier()
-    elo_snap = load_elo_snapshot()
-    form_dict = load_form_dict()
-    teams = sorted(elo_snap['team'].tolist())
-    
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.markdown("#### Team 1")
-        t1 = st.selectbox("Select", teams, key="t1", index=teams.index("Spain") if "Spain" in teams else 0)
-        elo1 = elo_snap[elo_snap['team'] == t1]['elo_2026'].values[0]
-        form1 = form_dict.get(t1, 0.5)
+    with c3:
+        st.markdown("### Win Rate Distribution")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor(BG_DARK)
+        ax.set_facecolor(BG_CARD)
         
-        col_a, col_b = st.columns([1, 3])
-        with col_a:
-            st.image(get_flag_url(t1), width=50)
-        with col_b:
-            st.markdown(f"**Elo:** {elo1:.0f}  |  **Form:** {form1:.0%}")
-    
-    with c2:
-        st.markdown("#### Team 2")
-        t2 = st.selectbox("Select ", teams, key="t2", index=teams.index("Brazil") if "Brazil" in teams else 1)
-        elo2 = elo_snap[elo_snap['team'] == t2]['elo_2026'].values[0]
-        form2 = form_dict.get(t2, 0.5)
-        
-        col_a, col_b = st.columns([1, 3])
-        with col_a:
-            st.image(get_flag_url(t2), width=50)
-        with col_b:
-            st.markdown(f"**Elo:** {elo2:.0f}  |  **Form:** {form2:.0%}")
-    
-    st.markdown("---")
-    
-    col_btn = st.columns([1, 1, 1])
-    with col_btn[1]:
-        predict_btn = st.button(" Predict Match", use_container_width=True)
-    
-    if predict_btn:
-        if t1 == t2:
-            st.error("Please select different teams!")
+        if 'win_rate' in elo_df.columns:
+            ax.hist(elo_df['win_rate'], bins=15, alpha=0.8, 
+                   color=C_ACCENT, edgecolor='white')
+            ax.set_xlabel('Win Rate', color='white')
+            ax.set_ylabel('Teams', color='white')
         else:
-            proba = predict_match_ml(model, features, elo1, elo2, form1, form2)
+            ax.text(0.5, 0.5, 'Win rate data not available', 
+                   ha='center', va='center', color='white', transform=ax.transAxes)
+        
+        for spine in ax.spines.values():
+            spine.set_color(BORDER_COLOR)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+    
+    with c4:
+        st.markdown("### Form Score Distribution")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor(BG_DARK)
+        ax.set_facecolor(BG_CARD)
+        
+        form_values = list(form_dict.values())
+        ax.hist(form_values, bins=15, alpha=0.8, 
+               color=C_PRIMARY, edgecolor='white')
+        
+        ax.axvline(np.mean(form_values), color=C_SECONDARY, linestyle='--', 
+                  linewidth=2, label=f'Mean: {np.mean(form_values):.2f}')
+        
+        ax.set_xlabel('Form Score', color='white')
+        ax.set_ylabel('Teams', color='white')
+        ax.legend(facecolor=BG_CARD, edgecolor=BORDER_COLOR, labelcolor='white')
+        for spine in ax.spines.values():
+            spine.set_color(BORDER_COLOR)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+    
+    c5, c6 = st.columns(2)
+    
+    with c5:
+        st.markdown("### Elo vs Form Correlation")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor(BG_DARK)
+        ax.set_facecolor(BG_CARD)
+        
+        form_data = []
+        for team in elo_df['team']:
+            form_data.append(form_dict.get(team, 0.5))
+        
+        ax.scatter(elo_df['elo_2026'], form_data, alpha=0.6, 
+                  color=C_PRIMARY, edgecolor='white', s=100)
+        
+        z = np.polyfit(elo_df['elo_2026'], form_data, 1)
+        p = np.poly1d(z)
+        ax.plot(elo_df['elo_2026'].sort_values(), p(elo_df['elo_2026'].sort_values()), 
+               "r--", alpha=0.8, linewidth=2, color=C_SECONDARY)
+        
+        ax.set_xlabel('Elo Rating', color='white')
+        ax.set_ylabel('Form Score', color='white')
+        ax.set_title('Elo vs Form', color='white', pad=10)
+        for spine in ax.spines.values():
+            spine.set_color(BORDER_COLOR)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+    
+    with c6:
+        st.markdown("### Team Tiers")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor(BG_DARK)
+        ax.set_facecolor(BG_CARD)
+        
+        if 'tier' in elo_df.columns:
+            tier_counts = elo_df['tier'].value_counts()
+            colors_tier = {tier: C_PRIMARY if tier == 'Strong' else C_ACCENT if tier == 'Medium' else C_NEUTRAL 
+                          for tier in tier_counts.index}
+            bars = ax.bar(tier_counts.index, tier_counts.values, 
+                         color=[colors_tier.get(t, C_NEUTRAL) for t in tier_counts.index],
+                         edgecolor='white')
             
-            st.markdown("---")
-            st.markdown("### Prediction Results")
-            
-            r1, r2, r3 = st.columns(3)
-            
-            with r1:
-                st.markdown(f"""<div class="result-card">
-                    <img src="{get_flag_url(t1)}" width="50">
-                    <div style="color: #888; margin: 10px 0;">{t1}</div>
-                    <div style="font-size: 2.2rem; font-weight: 700; color: {C_PRIMARY};">{proba[2]*100:.1f}%</div>
-                </div>""", unsafe_allow_html=True)
-            
-            with r2:
-                st.markdown(f"""<div class="result-card">
-                    <div style="font-size: 1.5rem; color: #666;">⚖️</div>
-                    <div style="color: #888; margin: 10px 0;">Draw</div>
-                    <div style="font-size: 2.2rem; font-weight: 700; color: {C_NEUTRAL};">{proba[1]*100:.1f}%</div>
-                </div>""", unsafe_allow_html=True)
-            
-            with r3:
-                st.markdown(f"""<div class="result-card">
-                    <img src="{get_flag_url(t2)}" width="50">
-                    <div style="color: #888; margin: 10px 0;">{t2}</div>
-                    <div style="font-size: 2.2rem; font-weight: 700; color: {C_SECONDARY};">{proba[0]*100:.1f}%</div>
-                </div>""", unsafe_allow_html=True)
-            
-            # Winner card
-            idx = np.argmax(proba)
-            if idx == 2:
-                winner, prob = t1, proba[2]
-            elif idx == 0:
-                winner, prob = t2, proba[0]
-            else:
-                winner, prob = "Draw", proba[1]
-            
-            if winner != "Draw":
-                st.markdown("<br>", unsafe_allow_html=True)
-                wc = st.columns([1, 2, 1])
-                with wc[1]:
-                    st.markdown(f"""<div class="winner-card">
-                        <div style="color: #888;"> Predicted Winner</div>
-                        <img src="{get_flag_url(winner)}" width="80" style="margin: 15px 0;">
-                        <div style="font-size: 1.6rem; font-weight: 700; color: white;">{winner}</div>
-                        <div style="color: {C_PRIMARY};">Confidence: {prob*100:.1f}%</div>
-                    </div>""", unsafe_allow_html=True)
+            for bar in bars:
+                h = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2, h + 0.5, 
+                       f'{int(h)}', ha='center', color='white', fontweight='bold')
+        else:
+            ax.text(0.5, 0.5, 'Tier data not available', 
+                   ha='center', va='center', color='white', transform=ax.transAxes)
+        
+        ax.set_ylabel('Number of Teams', color='white')
+        ax.set_title('Teams by Tier', color='white', pad=10)
+        for spine in ax.spines.values():
+            spine.set_color(BORDER_COLOR)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
 
-
-def goals_page():
-    """Goal Prediction Page"""
-    st.markdown("##  Goal Prediction")
+def goal_prediction_page():
+    st.markdown("## Goal Prediction")
     st.markdown("---")
     
-    elo_snap = load_elo_snapshot()
-    form_dict = load_form_dict()
-    teams = sorted(elo_snap['team'].tolist())
+    teams = sorted(elo_df['team'].tolist())
     
     c1, c2 = st.columns(2)
     
     with c1:
         st.markdown("#### Home Team")
-        home = st.selectbox("Select", teams, key="home_goal", index=0)
-        home_elo = elo_snap[elo_snap['team'] == home]['elo_2026'].values[0]
-        st.image(get_flag_url(home), width=50)
+        home = st.selectbox("Select Home Team", teams, key="home_goal", index=0)
+        home_elo = elo_df[elo_df['team'] == home]['elo_2026'].values[0]
+        st.write(f"Elo: {home_elo:.0f}")
     
     with c2:
         st.markdown("#### Away Team")
-        away = st.selectbox("Select ", teams, key="away_goal", index=1)
-        away_elo = elo_snap[elo_snap['team'] == away]['elo_2026'].values[0]
-        st.image(get_flag_url(away), width=50)
+        away = st.selectbox("Select Away Team", teams, key="away_goal", index=1)
+        away_elo = elo_df[elo_df['team'] == away]['elo_2026'].values[0]
+        st.write(f"Elo: {away_elo:.0f}")
     
     st.markdown("---")
     
     col_btn = st.columns([1, 1, 1])
     with col_btn[1]:
-        predict_btn = st.button(" Predict Score", use_container_width=True)
+        predict_btn = st.button("Predict Score", use_container_width=True, type="primary")
     
     if predict_btn:
         if home == away:
             st.error("Please select different teams!")
         else:
-            # Goal prediction formula from Colab
             diff_ratio = (home_elo - away_elo) / 400
             hg = max(0, 1.5 + diff_ratio * 0.5)
             ag = max(0, 1.2 - diff_ratio * 0.5)
@@ -1068,331 +680,191 @@ def goals_page():
             r1, r2, r3 = st.columns([2, 1, 2])
             
             with r1:
-                st.markdown(f"""<div class="result-card">
-                    <img src="{get_flag_url(home)}" width="60">
-                    <div style="color: #888; margin: 10px 0;">{home}</div>
+                st.markdown(f"""
+                <div style="background: {BG_CARD}; border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 18px; color: #888; margin-bottom: 10px;">{home}</div>
                     <div style="font-size: 3rem; font-weight: 700; color: {C_PRIMARY};">{hg:.1f}</div>
-                    <div style="color: #666;">Expected Goals</div>
-                </div>""", unsafe_allow_html=True)
+                    <div style="color: #666; margin-top: 10px;">Expected Goals</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with r2:
-                st.markdown(f"""<div style="display: flex; align-items: center; 
-                           justify-content: center; height: 100%;">
-                    <div style="font-size: 2rem; color: #666; margin-top: 60px;">vs</div>
-                </div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                    <div style="font-size: 2rem; color: #666;">vs</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with r3:
-                st.markdown(f"""<div class="result-card">
-                    <img src="{get_flag_url(away)}" width="60">
-                    <div style="color: #888; margin: 10px 0;">{away}</div>
+                st.markdown(f"""
+                <div style="background: {BG_CARD}; border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 18px; color: #888; margin-bottom: 10px;">{away}</div>
                     <div style="font-size: 3rem; font-weight: 700; color: {C_SECONDARY};">{ag:.1f}</div>
-                    <div style="color: #666;">Expected Goals</div>
-                </div>""", unsafe_allow_html=True)
+                    <div style="color: #666; margin-top: 10px;">Expected Goals</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            st.info(f"**Most Likely Score:** {home} {round(hg)} - {round(ag)} {away}")
-
+            st.info(f"Most Likely Score: {home} {round(hg)} - {round(ag)} {away}")
 
 def clustering_page():
-    """Clustering Page - EXACT visualization from Colab"""
-    st.markdown("##  Team Clustering (K-Means)")
+    st.markdown("## Team Clustering Analysis")
     st.markdown("---")
     
-    # Load and process data
-    df = cluster_teams()
+    df = elo_df.copy()
     
-    # Matching the exact plotting logic from Section 3
+    form_data = []
+    for team in df['team']:
+        form_data.append(form_dict.get(team, 0.5))
+    
+    df['form'] = form_data
+    
     plt.style.use('dark_background')
+    plt.rcParams.update({
+        'figure.facecolor': BG_DARK,
+        'axes.facecolor': BG_CARD,
+        'axes.labelcolor': 'white',
+        'xtick.color': 'white',
+        'ytick.color': 'white',
+    })
     
     c1, c2 = st.columns([2, 1])
     
     with c1:
-        st.markdown("### Cluster Distribution (Elo vs Win Rate)")
-        # Plotting the clusters exactly as in Colab
-        fig, ax = plt.subplots(figsize=(10, 6.5))
+        st.markdown("### Elo vs Form")
+        fig, ax = plt.subplots(figsize=(10, 6))
         fig.patch.set_facecolor(BG_DARK)
         ax.set_facecolor(BG_CARD)
         
-        # Colors for the 3 tiers as defined in Colab
-        tier_colors = {'Strong': C_PRIMARY, 'Medium': C_ACCENT, 'Weak': C_NEUTRAL}
+        if 'tier' in df.columns:
+            tier_colors = {'Strong': C_PRIMARY, 'Medium': C_ACCENT, 'Weak': C_NEUTRAL}
+            for tier in df['tier'].unique():
+                data = df[df['tier'] == tier]
+                ax.scatter(data['elo_2026'], data['form'], 
+                          label=tier, alpha=0.7, s=100, 
+                          color=tier_colors.get(tier, C_NEUTRAL), edgecolor='white')
+            ax.legend(facecolor=BG_CARD, edgecolor=BORDER_COLOR, labelcolor='white')
+        else:
+            ax.scatter(df['elo_2026'], df['form'], alpha=0.7, s=100, 
+                      color=C_PRIMARY, edgecolor='white')
         
-        sns.scatterplot(
-            data=df, x='elo_2026', y='win_rate', hue='tier',
-            palette=tier_colors, s=150, alpha=0.9, edgecolor='white', ax=ax
-        )
+        top_teams = df.nlargest(5, 'elo_2026')
+        for _, row in top_teams.iterrows():
+            ax.text(row['elo_2026'] + 10, row['form'] + 0.01, 
+                   row['team'], fontsize=9, color='white', fontweight='bold')
         
-        # Adding labels for top teams like in the original visualization
-        top_teams = df.nlargest(8, 'elo_2026')
-        for idx, row in top_teams.iterrows():
-            ax.text(row['elo_2026'] + 5, row['win_rate'] + 0.005, 
-                    row['team'], fontsize=9, color='white', fontweight='bold')
-            
-        ax.set_title('Team Tiers - Based on Multi-feature Clustering', color=C_PRIMARY, fontsize=14, pad=15)
-        ax.set_xlabel('Elo Rating (2026 Snapshot)', color='white', fontsize=11)
-        ax.set_ylabel('Historical Win Rate', color='white', fontsize=11)
-        ax.legend(title='Team Tier', title_fontsize='12', facecolor=BG_CARD, edgecolor=BORDER_COLOR, labelcolor='white')
+        ax.set_xlabel('Elo Rating', color='white')
+        ax.set_ylabel('Form Score', color='white')
+        ax.set_title('Team Clustering', color='white', pad=10)
         ax.grid(True, linestyle='--', alpha=0.15, color='white')
         
         for spine in ax.spines.values():
             spine.set_color(BORDER_COLOR)
-            
         plt.tight_layout()
         st.pyplot(fig)
         plt.close()
     
     with c2:
-        st.markdown("### Tier Summaries")
-        for tier, color in tier_colors.items():
-            data = df[df['tier'] == tier]
-            st.markdown(f"""<div style="background: {color}20; border-left: 4px solid {color}; 
-                        border-radius: 0 8px 8px 0; padding: 1.2rem; margin-bottom: 1rem;">
-                <div style="font-weight: 700; color: {color}; font-size: 1.1rem;">{tier} Tier</div>
-                <div style="color: #aaa;">{len(data)} Teams Analyzed</div>
-                <div style="color: white; margin-top: 5px;">Avg Elo: {data['elo_2026'].mean():.0f}</div>
-                <div style="color: white;">Avg Win Rate: {data['win_rate'].mean():.1%}</div>
-            </div>""", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### Tier Listing (Top 10 per Category)")
-    
-    t1, t2, t3 = st.columns(3)
-    for col, tier in zip([t1, t2, t3], ['Strong', 'Medium', 'Weak']):
-        with col:
-            st.markdown(f"**{tier} Tier**")
-            tier_data = df[df['tier'] == tier].nlargest(10, 'elo_2026')
-            for _, row in tier_data.iterrows():
-                tc1, tc2 = st.columns([1, 4])
-                with tc1:
-                    st.image(get_flag_url(row['team']), width=22)
-                with tc2:
-                    st.write(f"{row['team']} ({row['elo_2026']:.0f})")
-
+        st.markdown("### Cluster Summary")
+        if 'tier' in df.columns:
+            for tier in ['Strong', 'Medium', 'Weak']:
+                data = df[df['tier'] == tier]
+                st.markdown(f"""
+                <div style="background: {BG_CARD}; border-left: 4px solid {C_PRIMARY}; border-radius: 0 8px 8px 0; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="font-weight: 700; color: {C_PRIMARY};">{tier} Tier</div>
+                    <div style="color: #aaa;">Teams: {len(data)}</div>
+                    <div style="color: white; margin-top: 5px;">Avg Elo: {data['elo_2026'].mean():.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 def simulation_page():
-    """World Cup Simulation - EXACT from Colab + Path Prediction"""
-    st.markdown("##  World Cup 2026 Simulation")
+    st.markdown("## World Cup 2026 Simulation")
     st.markdown("---")
     
-    model, _, _, features = train_match_classifier()
+    st.sidebar.markdown("## Simulation Controls")
+    st.sidebar.markdown("---")
     
-    plt.style.use('dark_background')
+    shuffle_teams = st.sidebar.checkbox("Shuffle teams for Round of 32", value=True)
     
-    # Show groups
-    st.markdown("### Official Groups (48 Teams)")
+    st.sidebar.markdown("---")
     
-    group_cols = st.columns(4)
-    for i, (grp, teams) in enumerate(WC2026_GROUPS.items()):
-        with group_cols[i % 4]:
-            st.markdown(f"**Group {grp}**")
-            for team in teams:
-                st.markdown(f"• {team}")
-    
-    st.markdown("---")
-    
-    c1, c2 = st.columns([1, 2])
-    
-    with c1:
-        st.markdown("### Simulation Settings")
-        n_sim = st.slider("Number of Simulations", 100, 5000, 1000, 100)
-        st.caption("More simulations = more accurate results")
+    if st.sidebar.button("Simulate Tournament", use_container_width=True, type="primary"):
+        all_teams = []
+        for grp, teams in WC2026_GROUPS.items():
+            all_teams.extend(teams)
         
-        if st.button(" Run Monte Carlo", use_container_width=True):
-            st.session_state.run_sim = True
-
+        if shuffle_teams:
+            shuffled_teams = all_teams.copy()
+            np.random.shuffle(shuffled_teams)
+        else:
+            shuffled_teams = all_teams
+        
+        with st.spinner("Simulating tournament..."):
+            bracket = simulate_full_bracket(shuffled_teams)
+        
+        st.session_state.bracket = bracket
+    
+    if 'bracket' in st.session_state:
+        display_knockout_bracket(st.session_state.bracket)
+        
         st.markdown("---")
-        st.markdown("### Single Path Simulation")
-        st.caption("Predicts a single tournament outcome in the style of the reference image")
-        if st.button(" Generate Full Path", use_container_width=True):
-            with st.spinner("Generating full tournament path..."):
-                # TRIGGER THE CORRECTED PATH FUNCTION
-                st.session_state.full_path = run_tournament_with_path(model, features)
-    
-    if st.session_state.get('run_sim', False):
-        with st.spinner("Running Monte Carlo simulation..."):
-            probs = run_simulation(n_sim, model, features)
-            st.session_state.sim_results = probs
-            st.session_state.run_sim = False
-    
-    with c2:
-        if st.session_state.get('full_path'):
-            st.markdown("###  Predicted Tournament Path")
-            st.code(st.session_state.full_path, language="text")
-            st.markdown("---")
-
-        if 'sim_results' in st.session_state:
-            st.markdown("### Win Probabilities")
-            
-            res = st.session_state.sim_results
-            top15 = dict(list(res.items())[:15])
-            
-            fig, ax = plt.subplots(figsize=(10, 8))
-            fig.patch.set_facecolor(BG_DARK)
-            ax.set_facecolor(BG_CARD)
-            
-            teams_l = list(top15.keys())[::-1]
-            probs_l = [top15[t] * 100 for t in teams_l]
-            colors = [C_PRIMARY if p > 10 else C_ACCENT if p > 5 else C_NEUTRAL for p in probs_l]
-            
-            bars = ax.barh(teams_l, probs_l, color=colors, edgecolor='white')
-            
-            for bar, p in zip(bars, probs_l):
-                ax.text(p + 0.5, bar.get_y() + bar.get_height()/2, 
-                       f'{p:.1f}%', va='center', color='white', fontsize=9)
-            
-            ax.set_xlabel('Win Probability %', color='white')
-            ax.set_title('World Cup 2026 Predictions', color=C_PRIMARY, fontsize=12, pad=10)
-            for spine in ax.spines.values():
-                spine.set_color(BORDER_COLOR)
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
-            
-            # Champion card
-            champ = list(res.keys())[0]
-            champ_prob = res[champ] * 100
-            
-            st.markdown("---")
-            wc = st.columns([1, 2, 1])
-            with wc[1]:
-                st.markdown(f"""<div class="winner-card">
-                    <div style="color: #888;"> Predicted Champion</div>
-                    <img src="{get_flag_url(champ)}" width="100" style="margin: 15px 0;">
-                    <div style="font-size: 1.8rem; font-weight: 700; color: white;">{champ}</div>
-                    <div style="color: {C_PRIMARY};">Win Probability: {champ_prob:.1f}%</div>
-                </div>""", unsafe_allow_html=True)
-
-
-def metrics_page():
-    """Model Metrics Page"""
-    st.markdown("##  Model Performance")
-    st.markdown("---")
-    
-    model, acc, f1, features = train_match_classifier()
-    df = generate_matches_data()
-    
-    plt.style.use('dark_background')
-    
-    # Metrics cards
-    c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        st.markdown(f"""<div style="background: {BG_CARD}; border-radius: 10px; padding: 1.5rem; 
-                    text-align: center; border: 1px solid {C_PRIMARY};">
-            <div style="color: #888;">Accuracy</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: {C_PRIMARY};">{acc*100:.1f}%</div>
-        </div>""", unsafe_allow_html=True)
-    
-    with c2:
-        st.markdown(f"""<div style="background: {BG_CARD}; border-radius: 10px; padding: 1.5rem; 
-                    text-align: center; border: 1px solid {C_ACCENT};">
-            <div style="color: #888;">F1 Score</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: {C_ACCENT};">{f1:.3f}</div>
-        </div>""", unsafe_allow_html=True)
-    
-    with c3:
-        st.markdown(f"""<div style="background: {BG_CARD}; border-radius: 10px; padding: 1.5rem; 
-                    text-align: center; border: 1px solid {BORDER_COLOR};">
-            <div style="color: #888;">Model</div>
-            <div style="font-size: 1.2rem; font-weight: 700; color: white; margin-top: 10px;">XGBoost</div>
-        </div>""", unsafe_allow_html=True)
-    
-    with c4:
-        st.markdown(f"""<div style="background: {BG_CARD}; border-radius: 10px; padding: 1.5rem; 
-                    text-align: center; border: 1px solid {BORDER_COLOR};">
-            <div style="color: #888;">Features</div>
-            <div style="font-size: 2.2rem; font-weight: 700; color: white;">{len(features)}</div>
-        </div>""", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    c5, c6 = st.columns(2)
-    
-    with c5:
-        st.markdown("### Features Used")
-        for f in features:
-            st.markdown(f"• **{f}**")
+        st.markdown("### Tournament Champion")
         
-        st.markdown("### Model Configuration")
-        st.markdown("""
-        - **Algorithm:** XGBoost Classifier
-        - **Estimators:** 300
-        - **Max Depth:** 6
-        - **Learning Rate:** 0.05
-        """)
-    
-    with c6:
-        st.markdown("### Class Distribution")
-        fig, ax = plt.subplots(figsize=(6, 5))
-        fig.patch.set_facecolor(BG_DARK)
+        champion = st.session_state.bracket['final'][0]['winner']
+        champion_prob = st.session_state.bracket['final'][0]['prob1'] if st.session_state.bracket['final'][0]['team1'] == champion else st.session_state.bracket['final'][0]['prob2']
         
-        labels = ['Away Win', 'Draw', 'Home Win']
-        counts = [
-            (df['result'] == 0).sum(),
-            (df['result'] == 1).sum(),
-            (df['result'] == 2).sum()
-        ]
-        colors = [C_SECONDARY, C_NEUTRAL, C_PRIMARY]
+        flag_code = get_flag_code(champion)
+        flag_url = f"https://flagcdn.com/w80/{flag_code}.png"
         
-        ax.pie(counts, labels=labels, colors=colors, autopct='%1.1f%%',
-              wedgeprops={'edgecolor': BG_DARK, 'linewidth': 2},
-              textprops={'color': 'white'})
-        ax.axis('equal')
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-
-
-# ============================================================================
-# MAIN
-# ============================================================================
+        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+        with col_c2:
+            st.markdown(f"""
+            <div style="background: linear-gradient(145deg, #161b22 0%, #1a2332 100%); border: 3px solid #1f77b4; border-radius: 12px; padding: 2rem; text-align: center; box-shadow: 0 8px 30px rgba(31,119,180,0.3);">
+                <div style="font-size: 13px; color: #888; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">World Cup Champion</div>
+                <img src="{flag_url}" style="width: 80px; height: 53px; border-radius: 4px; margin-bottom: 15px;" onerror="this.style.display='none'">
+                <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-bottom: 10px;">{champion}</div>
+                <div style="font-size: 13px; color: #1f77b4;">Win Probability: {champion_prob:.1%}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def main():
     if 'page' not in st.session_state:
         st.session_state.page = 'home'
     
-    # Sidebar navigation (hidden on home)
-    if st.session_state.page != 'home':
-        with st.sidebar:
-            st.markdown(f"###  Navigation")
-            
-            if st.button(" Home", use_container_width=True):
-                st.session_state.page = "home"
-                st.rerun()
-            
-            if st.button(" Dashboard", use_container_width=True):
-                st.session_state.page = "dashboard"
-                st.rerun()
-            
-            st.markdown("---")
-            
-            pages = [
-                ("", "EDA", "eda"),
-                ("", "Match Prediction", "prediction"),
-                ("", "Goal Prediction", "goals"),
-                ("", "Clustering", "clustering"),
-                ("", "Simulation", "simulation"),
-                ("", "Metrics", "metrics"),
-            ]
-            
-            for emoji, name, key in pages:
-                if st.button(f"{emoji} {name}", use_container_width=True):
-                    st.session_state.page = key
-                    st.rerun()
+    with st.sidebar:
+        st.markdown("## Navigation")
+        st.markdown("---")
+        
+        if st.button("Home", use_container_width=True):
+            st.session_state.page = "home"
+            st.rerun()
+        
+        if st.button("EDA", use_container_width=True):
+            st.session_state.page = "eda"
+            st.rerun()
+        
+        if st.button("Goal Prediction", use_container_width=True):
+            st.session_state.page = "goals"
+            st.rerun()
+        
+        if st.button("Clustering", use_container_width=True):
+            st.session_state.page = "clustering"
+            st.rerun()
+        
+        if st.button("Simulation", use_container_width=True):
+            st.session_state.page = "simulation"
+            st.rerun()
     
-    # Page router
-    pages = {
-        'home': home_page,
-        'dashboard': dashboard_page,
-        'eda': eda_page,
-        'prediction': prediction_page,
-        'goals': goals_page,
-        'clustering': clustering_page,
-        'simulation': simulation_page,
-        'metrics': metrics_page,
-    }
-    
-    pages[st.session_state.page]()
-
+    if st.session_state.page == 'home':
+        home_page()
+    elif st.session_state.page == 'eda':
+        eda_page()
+    elif st.session_state.page == 'goals':
+        goal_prediction_page()
+    elif st.session_state.page == 'clustering':
+        clustering_page()
+    elif st.session_state.page == 'simulation':
+        simulation_page()
 
 if __name__ == "__main__":
     main()
