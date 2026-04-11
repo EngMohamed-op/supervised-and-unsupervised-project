@@ -182,17 +182,16 @@ tbody td{padding:10px 13px}
 
 <header class="hero">
   <div class="hero-inner">
-    <div class="trophy">🏆</div>
     <div>
       <h1>World Cup <span>2026</span></h1>
       <h1 style="font-size:clamp(.85rem,2vw,1.5rem);color:var(--teal);font-family:'Bebas Neue',sans-serif;letter-spacing:2px;">Prediction Engine</h1>
       <p>Elo Engine · XGBoost · Poisson Goals · Monte Carlo 5,000 Simulations</p>
       <div class="badges">
-        <span class="badge">⚡ XGBoost</span>
-        <span class="badge a">📊 Poisson Goals</span>
-        <span class="badge t">🎲 Monte Carlo</span>
-        <span class="badge">🌍 200+ Teams</span>
-        <span class="badge a">⚽ 48 WC Teams</span>
+        <span class="badge">XGBoost</span>
+        <span class="badge a">Poisson Goals</span>
+        <span class="badge t">Monte Carlo</span>
+        <span class="badge">200+ Teams</span>
+        <span class="badge a">48 WC Teams</span>
       </div>
     </div>
   </div>
@@ -200,13 +199,13 @@ tbody td{padding:10px 13px}
 
 <nav>
   <div class="nav-inner">
-    <button class="tb active" onclick="sw('predict',this)">⚽ Match Predictor</button>
-    <button class="tb" onclick="sw('goals',this)">🎯 Goal Predictor</button>
-    <button class="tb" onclick="sw('bracket',this)">🏆 WC Bracket</button>
-    <button class="tb" onclick="sw('groups',this)">🗂 Groups</button>
-    <button class="tb" onclick="sw('rankings',this)">📋 Rankings</button>
-    <button class="tb" onclick="sw('montecarlo',this)">🎲 Monte Carlo</button>
-    <button class="tb" onclick="sw('eda',this)">📈 Analysis</button>
+    <button class="tb active" onclick="sw('predict',this)">Match Predictor</button>
+    <button class="tb" onclick="sw('goals',this)">Goal Predictor</button>
+    <button class="tb" onclick="sw('bracket',this)">WC Bracket</button>
+    <button class="tb" onclick="sw('groups',this)">Groups</button>
+    <button class="tb" onclick="sw('rankings',this)">Rankings</button>
+    <button class="tb" onclick="sw('montecarlo',this)">Monte Carlo</button>
+    <button class="tb" onclick="sw('eda',this)">Analysis</button>
   </div>
 </nav>
 
@@ -217,7 +216,7 @@ tbody td{padding:10px 13px}
   <div class="sh"><div class="st">Match Predictor</div>
     <p class="ss">Select any two national teams — ML-powered outcome probabilities</p></div>
   <div class="card">
-    <div class="ctitle">⚙️ Configure Match</div>
+    <div class="ctitle">Configure Match</div>
     <div class="frow">
       <div class="fg"><label>Home Team</label>
         <select id="p-home" onchange="prevElo()"><option value="">— Select Team —</option></select></div>
@@ -232,7 +231,7 @@ tbody td{padding:10px 13px}
       <div><div class="ep-lbl">Elo Diff</div><div class="ep-val" id="ep-d" style="color:var(--teal)"></div></div>
     </div>
     <button class="btn btn-p" onclick="runPredict()">
-      <span id="ps" class="spin hidden"></span><span id="pt">🔮 Predict Match</span>
+      <span id="ps" class="spin hidden"></span><span id="pt">Predict Match</span>
     </button>
     <div id="pred-result" class="hidden" style="margin-top:20px">
       <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
@@ -247,7 +246,7 @@ tbody td{padding:10px 13px}
         <div class="prow"><div class="plabel" id="r-al">Away Win</div><div class="ptrack"><div class="pfill f-a" id="b-a" style="width:0%"></div></div><div class="pval" id="v-a"></div></div>
       </div>
       <div class="pred-banner ph" id="pred-banner">
-        <div><div class="pred-lbl">🏅 Predicted Result</div><div class="pred-val" id="pred-val"></div></div>
+        <div><div class="pred-lbl">Predicted Result</div><div class="pred-val" id="pred-val"></div></div>
         <div style="text-align:right"><div class="pred-lbl">Model</div><div style="font-size:.8rem;color:var(--teal);font-weight:700" id="pred-src"></div></div>
       </div>
       <div class="scoreline">
@@ -256,9 +255,9 @@ tbody td{padding:10px 13px}
         <div class="sc-team"><div class="sc-flag" id="sc-af"></div><div class="sc-name" id="sc-an"></div><div class="sc-num" style="color:var(--amber)" id="sc-ag">—</div></div>
       </div>
       <div class="stats-row">
-        <div class="sm"><div class="sm-lbl">⚽ Home xG</div><div class="sm-val" id="st-hg"></div></div>
-        <div class="sm"><div class="sm-lbl">⚽ Away xG</div><div class="sm-val" id="st-ag"></div></div>
-        <div class="sm"><div class="sm-lbl">⚠️ Upset Risk</div><div class="sm-val" id="st-up"></div></div>
+        <div class="sm"><div class="sm-lbl">Home Goals</div><div class="sm-val" id="st-hg"></div></div>
+        <div class="sm"><div class="sm-lbl">Away Goals</div><div class="sm-val" id="st-ag"></div></div>
+        <div class="sm"><div class="sm-lbl">Predicted Score</div><div class="sm-val" id="st-score" style="color:var(--white)"></div></div>
       </div>
     </div>
   </div>
@@ -269,14 +268,14 @@ tbody td{padding:10px 13px}
   <div class="sh"><div class="st">Goal Predictor</div>
     <p class="ss">Expected goals (xG) using Poisson Regression model</p></div>
   <div class="card">
-    <div class="ctitle">⚙️ Select Teams</div>
+    <div class="ctitle">Select Teams</div>
     <div class="frow">
       <div class="fg"><label>Home Team</label><select id="g-home"><option value="">— Select Team —</option></select></div>
       <div class="fg"><label>Away Team</label><select id="g-away"><option value="">— Select Team —</option></select></div>
     </div>
     <div class="chk-row"><input type="checkbox" id="g-neutral"><label for="g-neutral">Neutral venue</label></div>
     <button class="btn btn-a" onclick="runGoals()">
-      <span id="gs-sp" class="spin hidden"></span>⚽ Predict Goals
+      <span id="gs-sp" class="spin hidden"></span>Predict Goals
     </button>
     <div id="goals-result" class="hidden" style="margin-top:20px">
       <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
@@ -286,14 +285,14 @@ tbody td{padding:10px 13px}
         <div class="sc-team"><div class="sc-flag" id="gr-af"></div><div class="sc-name" id="gr-an"></div><div class="sc-num" style="color:var(--amber)" id="gr-ag">—</div><div style="font-size:.68rem;color:var(--dim)">Expected Goals</div></div>
       </div>
       <div class="stats-row" style="margin-top:0">
-        <div class="sm"><div class="sm-lbl">📊 Total xG</div><div class="sm-val" id="gr-total" style="color:var(--white)"></div></div>
-        <div class="sm"><div class="sm-lbl">🏠 Home Elo</div><div class="sm-val" id="gr-he" style="color:var(--primary)"></div></div>
-        <div class="sm"><div class="sm-lbl">✈️ Away Elo</div><div class="sm-val" id="gr-ae" style="color:var(--amber)"></div></div>
+        <div class="sm"><div class="sm-lbl">Total xG</div><div class="sm-val" id="gr-total" style="color:var(--white)"></div></div>
+        <div class="sm"><div class="sm-lbl">Home Elo</div><div class="sm-val" id="gr-he" style="color:var(--primary)"></div></div>
+        <div class="sm"><div class="sm-lbl">Away Elo</div><div class="sm-val" id="gr-ae" style="color:var(--amber)"></div></div>
       </div>
       <div class="stats-row">
-        <div class="sm"><div class="sm-lbl">📈 Elo Diff</div><div class="sm-val" id="gr-diff" style="color:var(--teal)"></div></div>
-        <div class="sm"><div class="sm-lbl">⚡ Model</div><div class="sm-val" id="gr-src" style="font-size:.9rem;color:var(--gray)"></div></div>
-        <div class="sm"><div class="sm-lbl">⚠️ Upset Risk</div><div class="sm-val" id="gr-up"></div></div>
+        <div class="sm"><div class="sm-lbl">Elo Diff</div><div class="sm-val" id="gr-diff" style="color:var(--teal)"></div></div>
+        <div class="sm"><div class="sm-lbl">Model</div><div class="sm-val" id="gr-src" style="font-size:.9rem;color:var(--gray)"></div></div>
+        <div class="sm"><div class="sm-lbl">Upset Risk</div><div class="sm-val" id="gr-up"></div></div>
       </div>
     </div>
   </div>
@@ -305,9 +304,9 @@ tbody td{padding:10px 13px}
     <p class="ss">Official FIFA 2026 bracket structure — full simulation from Group Stage to Final</p></div>
   <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
     <button class="btn btn-p" onclick="runBracket()">
-      <span id="br-sp" class="spin hidden"></span><span id="br-txt">🎲 Run Simulation</span>
+      <span id="br-sp" class="spin hidden"></span><span id="br-txt">Run Simulation</span>
     </button>
-    <button class="btn btn-o" onclick="runBracket()">🔄 Re-simulate</button>
+    <button class="btn btn-o" onclick="runBracket()">Re-simulate</button>
   </div>
   <div id="bracket-loading" class="loading hidden"><div class="spin"></div> Simulating tournament…</div>
   <div id="bracket-result" class="hidden">
@@ -315,12 +314,12 @@ tbody td{padding:10px 13px}
     <div id="champ-card-top" style="margin-bottom:20px"></div>
     <!-- Groups summary -->
     <div class="card" style="margin-bottom:18px">
-      <div class="ctitle">🗂 Group Stage Results</div>
+      <div class="ctitle">Group Stage Results</div>
       <div id="br-groups" class="gg"></div>
     </div>
     <!-- Full bracket -->
     <div class="card">
-      <div class="ctitle">🏆 Knockout Bracket</div>
+      <div class="ctitle">Knockout Bracket</div>
       <div class="bracket-container">
         <div class="bracket-layout">
           <!-- Left half -->
@@ -338,7 +337,7 @@ tbody td{padding:10px 13px}
 <!-- ═══ GROUPS ═══ -->
 <section id="tab-groups" class="panel">
   <div class="sh"><div class="st">WC 2026 Groups</div><p class="ss">12 groups · 48 teams</p></div>
-  <div class="info">ℹ️ Click any team to predict their match in Match Predictor</div>
+  <div class="info">Click any team to predict their match in Match Predictor</div>
   <div id="groups-container" class="gg"><div class="loading"><div class="spin"></div></div></div>
 </section>
 
@@ -359,7 +358,7 @@ tbody td{padding:10px 13px}
 <section id="tab-montecarlo" class="panel">
   <div class="sh"><div class="st">Monte Carlo</div><p class="ss">5,000 full tournament simulations — championship win probability</p></div>
   <div class="podium" id="mc-podium"><div class="loading"><div class="spin"></div></div></div>
-  <div class="card"><div class="ctitle">📊 Top 15 Win Probability</div>
+  <div class="card"><div class="ctitle">Top 15 Win Probability</div>
     <div class="mc-bars" id="mc-bars"></div></div>
 </section>
 
@@ -407,8 +406,8 @@ async function loadAllTeams(){
       const sel=document.getElementById(id);
       world.teams.forEach(t=>{
         const o=document.createElement('option');
-        o.value=t.name; o.textContent=`${t.flag||''} ${t.name} (${t.elo})`;
-        o.dataset.elo=t.elo; o.dataset.flag=t.flag||'🏳️';
+        o.value=t.name; o.textContent=`${t.name} (${t.elo})`;
+        o.dataset.elo=t.elo; o.dataset.flag=t.flag||'';
         sel.appendChild(o);
       });
     });
@@ -443,14 +442,14 @@ async function runPredict(){
     const d=await api('/api/predict/outcome',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home_team:h,away_team:a,neutral})});
     renderPredict(d);
   }catch(e){alert('Error: '+e.message)}
-  finally{document.getElementById('ps').classList.add('hidden');document.getElementById('pt').textContent='🔮 Predict Match'}
+  finally{document.getElementById('ps').classList.add('hidden');document.getElementById('pt').textContent='Predict Match'}
 }
 
 function renderPredict(d){
   const res=document.getElementById('pred-result');
   res.classList.remove('hidden');
-  document.getElementById('r-hf').textContent=d.home_flag||'🏳️';
-  document.getElementById('r-af').textContent=d.away_flag||'🏳️';
+  document.getElementById('r-hf').textContent='';
+  document.getElementById('r-af').textContent='';
   document.getElementById('r-hn').textContent=d.home_team;
   document.getElementById('r-an').textContent=d.away_team;
   document.getElementById('r-he').textContent='ELO '+d.home_elo;
@@ -471,18 +470,16 @@ function renderPredict(d){
   bn.className='pred-banner '+(pr==='Home Win'?'ph':pr==='Draw'?'pd':'pa');
   document.getElementById('pred-val').textContent=pr==='Home Win'?d.home_team+' Win':pr==='Away Win'?d.away_team+' Win':'Draw';
   document.getElementById('pred-src').textContent=d.outcome.source||'';
-  document.getElementById('sc-hf').textContent=d.home_flag||'🏳️';
-  document.getElementById('sc-af').textContent=d.away_flag||'🏳️';
+  document.getElementById('sc-hf').textContent='';
+  document.getElementById('sc-af').textContent='';
   document.getElementById('sc-hn').textContent=d.home_team;
   document.getElementById('sc-an').textContent=d.away_team;
   document.getElementById('sc-hg').textContent=d.goals?.home_goals??'—';
   document.getElementById('sc-ag').textContent=d.goals?.away_goals??'—';
   document.getElementById('st-hg').textContent=d.goals?.home_goals??'—';
   document.getElementById('st-ag').textContent=d.goals?.away_goals??'—';
-  const up=d.upset?.upset_probability??null;
-  const ue=document.getElementById('st-up');
-  ue.textContent=up!==null?(up*100).toFixed(1)+'%':'—';
-  ue.style.color=up>0.35?'var(--amber)':'var(--teal)';
+  const hgR=d.goals?.home_goals??0, agR=d.goals?.away_goals??0;
+  document.getElementById('st-score').textContent=Math.round(hgR)+' – '+Math.round(agR);
   res.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -498,8 +495,8 @@ async function runGoals(){
     const res=document.getElementById('goals-result');
     res.classList.remove('hidden');
     const hg=d.goals?.home_goals??0,ag=d.goals?.away_goals??0;
-    document.getElementById('gr-hf').textContent=d.home_flag||'🏳️';
-    document.getElementById('gr-af').textContent=d.away_flag||'🏳️';
+    document.getElementById('gr-hf').textContent='';
+    document.getElementById('gr-af').textContent='';
     document.getElementById('gr-hn').textContent=d.home_team;
     document.getElementById('gr-an').textContent=d.away_team;
     document.getElementById('gr-hg').textContent=hg;
@@ -532,19 +529,17 @@ async function runBracket(){
   }catch(e){alert('Error: '+e.message)}
   finally{
     document.getElementById('br-sp').classList.add('hidden');
-    document.getElementById('br-txt').textContent='🎲 Run Simulation';
+    document.getElementById('br-txt').textContent='Run Simulation';
     document.getElementById('bracket-loading').classList.add('hidden');
   }
 }
 
 function mkMatch(m){
   const w1=m.winner===m.t1;
-  const s=m.score||'';
-  const [s1,s2]=s.split('–');
   return`<div class="mc">
-    <div class="mc-t ${w1?'winner':'loser'}"><span class="tf">${m.f1||'🏳️'}</span><span>${m.t1||'TBD'}</span>${s1?`<span class="mc-sc">${s1}</span>`:''}</div>
+    <div class="mc-t ${w1?'winner':'loser'}"><span class="tf">${m.f1||''}</span><span>${m.t1||'TBD'}</span></div>
     <div class="mc-div"></div>
-    <div class="mc-t ${!w1?'winner':'loser'}"><span class="tf">${m.f2||'🏳️'}</span><span>${m.t2||'TBD'}</span>${s2?`<span class="mc-sc">${s2}</span>`:''}</div>
+    <div class="mc-t ${!w1?'winner':'loser'}"><span class="tf">${m.f2||''}</span><span>${m.t2||'TBD'}</span></div>
   </div>`;
 }
 
@@ -560,8 +555,7 @@ function renderBracket(d){
   // Champion card top
   document.getElementById('champ-card-top').innerHTML=`
     <div class="champ-card" style="max-width:320px;margin:0 auto">
-      <span class="champ-flag">${ch.flag||'🏳️'}</span>
-      <div class="champ-lbl">🏆 World Cup 2026 Champion</div>
+      <div class="champ-lbl">World Cup 2026 Champion</div>
       <div class="champ-name">${ch.team}</div>
     </div>`;
 
@@ -570,8 +564,8 @@ function renderBracket(d){
     <div class="gc">
       <div class="gh"><div class="gl">Group ${g}</div></div>
       <div class="gt">${teams.map((t,i)=>`
-        <div class="gtr"><span>${['🥇','🥈','🥉','4️⃣'][i]||''}</span>
-          <span>${t.flag||'🏳️'}</span><span class="gtn">${t.team}</span>
+        <div class="gtr"><span style="color:var(--dim);font-size:.75rem;font-weight:700;width:14px">${i+1}</span>
+          <span class="gtn">${t.team}</span>
           <span class="elo-chip">${t.pts}pts</span></div>`).join('')}
       </div>
     </div>`).join('');
@@ -600,27 +594,23 @@ function renderBracket(d){
   const final=d.final;
   const third=d.third_place;
   document.getElementById('bracket-center').innerHTML=`
-    <div class="final-title">⚽ Final · 07/19 NY</div>
+    <div class="final-title">Final · 07/19 NY</div>
     <div class="champ-card">
-      <span class="champ-flag">${ch.flag||'🏳️'}</span>
       <div class="champ-lbl">Champion</div>
       <div class="champ-name">${ch.team}</div>
-      <div style="font-size:.75rem;color:var(--dim);margin-top:4px">${final.score||''}</div>
     </div>
     <div class="finalist-row">
       <div class="finalist-card">
-        <div class="finalist-flag">${final.f1||'🏳️'}</div>
         <div class="finalist-name">${final.t1||''}</div>
       </div>
       <div style="display:flex;align-items:center;color:var(--dim);font-family:'Bebas Neue',sans-serif;font-size:1.2rem">VS</div>
       <div class="finalist-card">
-        <div class="finalist-flag">${final.f2||'🏳️'}</div>
         <div class="finalist-name">${final.t2||''}</div>
       </div>
     </div>
     ${third?`<div style="margin-top:10px;padding:10px;background:var(--surface);border:1px solid rgba(184,115,51,.3);border-radius:10px;text-align:center">
-      <div style="font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:600">🥉 3rd Place</div>
-      <div style="font-size:.88rem;font-weight:600;margin-top:4px">${third.fw||'🏳️'} ${third.winner} <span style="color:var(--dim)">${third.score||''}</span></div>
+      <div style="font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:600">3rd Place</div>
+      <div style="font-size:.88rem;font-weight:600;margin-top:4px">${third.winner}</div>
     </div>`:''}`;
 
   document.getElementById('bracket-result').classList.remove('hidden');
@@ -636,7 +626,6 @@ async function loadGroups(){
         <div class="gh"><div class="gl">Group ${g}</div><div style="font-size:.68rem;color:var(--dim);font-weight:600">${teams.length} Teams</div></div>
         <div class="gt">${teams.map(t=>`
           <div class="gtr" onclick="quickPredict('${t.name}')">
-            <span style="font-size:1.05rem">${t.flag||'🏳️'}</span>
             <span class="gtn">${t.name}</span>
             <span class="elo-chip">${t.elo}</span>
           </div>`).join('')}
@@ -664,7 +653,7 @@ async function loadRankings(){
       const [tl,tc]=tier(t.elo);
       return`<tr>
         <td><span class="rn">${i+1}</span></td>
-        <td><span style="margin-right:5px">${t.flag||'🏳️'}</span><strong>${t.name}</strong></td>
+        <td><strong>${t.name}</strong></td>
         <td style="color:var(--amber);font-weight:600">Group ${t.group}</td>
         <td><span class="ev">${t.elo}</span></td>
         <td style="color:var(--gray)">${(t.form*100).toFixed(0)}%</td>
@@ -679,11 +668,10 @@ async function loadMC(){
   try{
     const d=await api('/api/montecarlo');
     const top15=d.results.slice(0,15),maxP=top15[0]?.probability||1;
-    const medals=['🥇','🥈','🥉'],golds=['gold','silver','bronze'];
+    const medals=['1st','2nd','3rd'],golds=['gold','silver','bronze'];
     document.getElementById('mc-podium').innerHTML=d.results.slice(0,3).map((r,i)=>`
       <div class="pc ${golds[i]}">
-        <div class="pm">${medals[i]}</div>
-        <div style="font-size:1.4rem">${r.flag||'🏳️'}</div>
+        <div class="pm" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--dim)">${medals[i]}</div>
         <div class="pname">${r.team}</div>
         <div class="pprob">${(r.probability*100).toFixed(1)}%</div>
         <div class="pp-lbl">Win Probability</div>
@@ -691,7 +679,7 @@ async function loadMC(){
     document.getElementById('mc-bars').innerHTML=top15.map((r,i)=>`
       <div class="mbr">
         <div class="mr">${i+1}</div>
-        <div class="mn">${r.flag||''} ${r.team}</div>
+        <div class="mn">${r.team}</div>
         <div class="mt"><div class="mf" data-w="${(r.probability/maxP)*100}" style="width:0%"></div></div>
         <div class="mv">${(r.probability*100).toFixed(1)}%</div>
       </div>`).join('');
@@ -752,7 +740,7 @@ async function loadEda(){
     // Q4 Win rate
     if(wr.teams&&wr.teams.length){
       mkChart('ch-wr','bar',{
-        labels:wr.teams.map(t=>t.flag+' '+t.team),
+        labels:wr.teams.map(t=>t.team),
         datasets:[{label:'Win Rate',data:wr.teams.map(t=>+(t.win_rate*100).toFixed(1)),backgroundColor:wr.teams.map((_,i)=>i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.6)'),borderRadius:4}]
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,max:100,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Win Rate: ${ctx.parsed.x}%`}}}});
     }
@@ -761,7 +749,7 @@ async function loadEda(){
     if(mc.results&&mc.results.length){
       const top=mc.results.slice(0,12);
       mkChart('ch-mc','bar',{
-        labels:top.map(r=>(r.flag||'')+' '+r.team),
+        labels:top.map(r=>r.team),
         datasets:[{label:'Win Probability',data:top.map(r=>+(r.probability*100).toFixed(1)),backgroundColor:top.map((_,i)=>i===0?'rgba(245,158,11,.9)':i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.5)'),borderRadius:4}]
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.parsed.x}% chance to win`}}}});
     }
