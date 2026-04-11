@@ -412,6 +412,80 @@ async def eda_goals_dist():
             "home_mean":round(float(df["home_score"].mean()),2),
             "away_mean":round(float(df["away_score"].mean()),2)}
 
+@app.get("/api/eda/correlation", response_class=JSONResponse)
+async def eda_correlation():
+    if TRAINING_DATA is None:
+        return {"cols":[],"matrix":[]}
+    cols = ['home_elo_pre','away_elo_pre','elo_diff','home_score','away_score','total_goals','result']
+    available = [c for c in cols if c in TRAINING_DATA.columns]
+    corr = TRAINING_DATA[available].corr().round(2)
+    return {"cols": available, "matrix": corr.values.tolist()}
+
+@app.get("/api/eda/upset_rate", response_class=JSONResponse)
+async def eda_upset_rate():
+    if TRAINING_DATA is None:
+        return {"bins":[],"upset_rate":[],"wr_mid":[],"wr_val":[]}
+    df = TRAINING_DATA.copy()
+    if "elo_diff" not in df.columns:
+        return {"bins":[],"upset_rate":[],"wr_mid":[],"wr_val":[]}
+    df["elo_gap"] = df["elo_diff"].abs()
+    df["stronger_wins"] = (
+        ((df["elo_diff"] > 0) & (df["result"] == 2)) |
+        ((df["elo_diff"] < 0) & (df["result"] == 0))
+    )
+    bins_labels = ['0–50','50–100','100–200','200–300','300–500','500+']
+    df["gap_bin"] = pd.cut(df["elo_gap"], bins=[0,50,100,200,300,500,2000], labels=bins_labels)
+    upset = df[df["elo_gap"] > 0].groupby("gap_bin", observed=True).agg(
+        total=("result","count"), upsets=("stronger_wins", lambda x: (~x).sum())
+    ).reset_index()
+    upset["upset_rate"] = (upset["upsets"] / upset["total"] * 100).round(1)
+    import numpy as np
+    bins_cont = pd.cut(df["elo_gap"], bins=20)
+    wr_cont = df.groupby(bins_cont, observed=True)["stronger_wins"].mean().reset_index()
+    wr_cont["mid"] = wr_cont["elo_gap"].apply(lambda x: round(x.mid, 1))
+    return {
+        "bins": upset["gap_bin"].tolist(),
+        "upset_rate": upset["upset_rate"].tolist(),
+        "wr_mid": wr_cont["mid"].tolist(),
+        "wr_val": [round(float(v), 3) for v in wr_cont["stronger_wins"].tolist()]
+    }
+
+@app.get("/api/eda/elo_by_conf", response_class=JSONResponse)
+async def eda_elo_by_conf():
+    _ep2 = BASE_DIR / "elo_snapshot_2026.csv"
+    _fp2 = BASE_DIR / "saved_models" / "elo_snapshot_clustered.csv"
+    elo_snap = None
+    for p in [_fp2, _ep2, BASE_DIR / "saved_models" / "elo_snapshot_2026.csv"]:
+        if p.exists():
+            elo_snap = pd.read_csv(p)
+            break
+    if elo_snap is None or TRAINING_DATA is None:
+        return {"confederations":[]}
+    _fifa_paths = [BASE_DIR / "fifa_rankings.csv", BASE_DIR / "saved_models" / "fifa_rankings.csv"]
+    df_fifa = None
+    for p in _fifa_paths:
+        if p.exists():
+            df_fifa = pd.read_csv(p)
+            break
+    if df_fifa is None:
+        return {"confederations":[]}
+    conf_map = (df_fifa.sort_values("rank_date")
+                .groupby("country_full")["confederation"].last().reset_index())
+    elo_conf = elo_snap.merge(conf_map, left_on="team", right_on="country_full", how="left")
+    elo_conf = elo_conf.dropna(subset=["confederation"])
+    conf_order = (elo_conf.groupby("confederation")["elo_2026"]
+                  .median().sort_values(ascending=False).index.tolist())
+    result = []
+    for conf in conf_order:
+        vals = elo_conf[elo_conf["confederation"] == conf]["elo_2026"].tolist()
+        vals_sorted = sorted(vals)
+        q1 = float(pd.Series(vals_sorted).quantile(0.25))
+        q3 = float(pd.Series(vals_sorted).quantile(0.75))
+        median = float(pd.Series(vals_sorted).median())
+        result.append({"conf": conf, "median": round(median,1), "q1": round(q1,1), "q3": round(q3,1),
+                        "min": round(min(vals),1), "max": round(max(vals),1), "count": len(vals)})
+    return {"confederations": result}
+
 @app.get("/api/eda/elo_vs_outcome", response_class=JSONResponse)
 async def eda_elo_vs_outcome():
     if TRAINING_DATA is None:
