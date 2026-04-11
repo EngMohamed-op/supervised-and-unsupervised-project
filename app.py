@@ -487,91 +487,102 @@ def render_final_box(team1, team2, winner, prob1, prob2):
     """
     return html
 
+def _match_card_html(team1, team2, winner, prob1, prob2, is_final=False):
+    """Build a self-contained match card as HTML string."""
+    def flag(t):
+        return f"https://flagcdn.com/w40/{get_flag_code(t)}.png"
+
+    border = "2px solid #FFD700" if is_final else "1px solid #30363d"
+    bg     = "linear-gradient(135deg,#161b22,#3a3000)" if is_final else "linear-gradient(135deg,#161b22,#1a2332)"
+    label  = '<div style="color:#FFD700;font-size:8px;font-weight:bold;text-align:center;margin-bottom:6px;letter-spacing:1px;">FINAL</div>' if is_final else ''
+
+    def row(team, prob):
+        win_badge = '<span style="color:#90EE90;font-size:7px;font-weight:bold;margin-left:2px;">✓</span>' if team == winner else ''
+        return f"""
+        <div style="display:flex;align-items:center;gap:5px;padding:3px 0;">
+            <img src="{flag(team)}" style="width:22px;height:15px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'">
+            <span style="flex:1;color:white;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{team}</span>
+            <span style="color:#aaa;font-size:8px;">{prob:.0%}</span>
+            {win_badge}
+        </div>"""
+
+    divider_color = "#FFD700" if is_final else "#30363d"
+    return f"""
+    <div style="background:{bg};border:{border};border-radius:6px;padding:7px 8px;width:100%;box-sizing:border-box;">
+        {label}
+        {row(team1, prob1)}
+        <div style="height:1px;background:{divider_color};margin:3px 0;"></div>
+        {row(team2, prob2)}
+    </div>"""
+
 def display_knockout_bracket(bracket):
     st.markdown("### Tournament Bracket")
-    
-    r32_left = bracket.get('left_r32', [])
-    r32_right = bracket.get('right_r32', [])
-    
-    r16_left = bracket.get('left_r16', [])
-    r16_right = bracket.get('right_r16', [])
-    
-    qf_left = bracket.get('left_qf', [])
-    qf_right = bracket.get('right_qf', [])
-    
-    sf_left = bracket.get('left_sf', [])
-    sf_right = bracket.get('right_sf', [])
-    
-    final = bracket.get('final', [])
-    
-    cols = st.columns([1.5, 1, 1, 0.8, 1, 0.8, 1, 1, 1.5])
-    
-    with cols[0]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R32</div>', unsafe_allow_html=True)
-        for match in r32_left:
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-            st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
-    
-    with cols[1]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R16</div>', unsafe_allow_html=True)
-        for i, match in enumerate(r16_left):
-            if i > 0:
-                st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[2]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">QF</div>', unsafe_allow_html=True)
-        for i, match in enumerate(qf_left):
-            if i > 0:
-                st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[3]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">SF</div>', unsafe_allow_html=True)
-        st.markdown('<div style="height: 50px;"></div>', unsafe_allow_html=True)
-        for match in sf_left:
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[4]:
-        st.markdown('<div style="font-size: 10px; font-weight: bold; color: #FFD700; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">FINAL</div>', unsafe_allow_html=True)
-        st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
-        if len(final) > 0:
-            html = render_final_box(final[0]['team1'], final[0]['team2'], final[0]['winner'], final[0]['prob1'], final[0]['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[5]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">SF</div>', unsafe_allow_html=True)
-        st.markdown('<div style="height: 50px;"></div>', unsafe_allow_html=True)
-        for match in sf_right:
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[6]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">QF</div>', unsafe_allow_html=True)
-        for i, match in enumerate(qf_right):
-            if i > 0:
-                st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[7]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R16</div>', unsafe_allow_html=True)
-        for i, match in enumerate(r16_right):
-            if i > 0:
-                st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-    
-    with cols[8]:
-        st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">R32</div>', unsafe_allow_html=True)
-        for match in r32_right:
-            html = render_match_box(match['team1'], match['team2'], match['winner'], match['prob1'], match['prob2'])
-            st.markdown(html, unsafe_allow_html=True)
-            st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
+
+    r32_l = bracket.get('left_r32',  [])
+    r32_r = bracket.get('right_r32', [])
+    r16_l = bracket.get('left_r16',  [])
+    r16_r = bracket.get('right_r16', [])
+    qf_l  = bracket.get('left_qf',   [])
+    qf_r  = bracket.get('right_qf',  [])
+    sf_l  = bracket.get('left_sf',   [])
+    sf_r  = bracket.get('right_sf',  [])
+    final = bracket.get('final',     [])
+
+    # Card height + gap used to space rounds vertically
+    CARD_H  = 58   # px  (approximate rendered height of one match card)
+    GAP     = 10   # px  gap between cards within the same round
+
+    def col_html(matches, round_label, is_final_col=False, color="#1f77b4"):
+        """Build one round column: header + evenly spaced cards."""
+        n = len(matches)
+        # Total height the column should occupy
+        total = n * CARD_H + max(0, n - 1) * GAP
+
+        header_color = "#FFD700" if is_final_col else color
+        html = f"""
+        <div style="display:flex;flex-direction:column;align-items:stretch;">
+            <div style="font-size:9px;font-weight:bold;color:{header_color};
+                        text-align:center;margin-bottom:8px;text-transform:uppercase;
+                        letter-spacing:1px;">{round_label}</div>
+            <div style="display:flex;flex-direction:column;gap:{GAP}px;height:{total}px;justify-content:space-around;">
+        """
+        for m in matches:
+            html += _match_card_html(m['team1'], m['team2'], m['winner'],
+                                     m['prob1'], m['prob2'], is_final=is_final_col)
+        html += "</div></div>"
+        return html
+
+    # Build each column
+    col_r32_l  = col_html(r32_l,  "R32")
+    col_r16_l  = col_html(r16_l,  "R16")
+    col_qf_l   = col_html(qf_l,   "QF")
+    col_sf_l   = col_html(sf_l,   "SF")
+    col_final  = col_html(final,  "FINAL", is_final_col=True)
+    col_sf_r   = col_html(sf_r,   "SF")
+    col_qf_r   = col_html(qf_r,   "QF")
+    col_r16_r  = col_html(r16_r,  "R16")
+    col_r32_r  = col_html(r32_r,  "R32")
+
+    full_html = f"""
+    <div style="overflow-x:auto;padding-bottom:8px;">
+      <div style="display:grid;
+                  grid-template-columns: 2fr 1.4fr 1fr 0.8fr 0.9fr 0.8fr 1fr 1.4fr 2fr;
+                  gap:8px;
+                  align-items:start;
+                  min-width:900px;">
+        {col_r32_l}
+        {col_r16_l}
+        {col_qf_l}
+        {col_sf_l}
+        {col_final}
+        {col_sf_r}
+        {col_qf_r}
+        {col_r16_r}
+        {col_r32_r}
+      </div>
+    </div>
+    """
+    st.markdown(full_html, unsafe_allow_html=True)
 
 def home_page():
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -930,12 +941,18 @@ def simulation_page():
             if i + j < len(groups_list):
                 group_letter, teams = groups_list[i + j]
                 with col:
+                    teams_html = "".join([
+                        f'<div style="display:flex; align-items:center; gap:8px; padding:4px 0;">'
+                        f'<img src="https://flagcdn.com/w40/{get_flag_code(t)}.png" '
+                        f'style="width:24px; height:16px; border-radius:2px; flex-shrink:0;" onerror="this.style.display=\'none\'">'
+                        f'<span style="color:#ddd; font-size:0.88rem;">{t}</span>'
+                        f'</div>'
+                        for t in teams
+                    ])
                     st.markdown(f"""
                     <div style="background: {BG_CARD}; border: 1px solid {BORDER_COLOR}; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                        <div style="font-weight: 700; color: {C_PRIMARY}; font-size: 1.2rem; margin-bottom: 0.5rem;">Group {group_letter}</div>
-                        <div style="color: #aaa; font-size: 0.9rem;">
-                            {', '.join(teams)}
-                        </div>
+                        <div style="font-weight: 700; color: {C_PRIMARY}; font-size: 1.2rem; margin-bottom: 0.6rem;">Group {group_letter}</div>
+                        {teams_html}
                     </div>
                     """, unsafe_allow_html=True)
     
@@ -1017,31 +1034,89 @@ def simulation_page():
 def main():
     if 'page' not in st.session_state:
         st.session_state.page = 'home'
-    
+
+    # --- Fixed top navigation bar ---
+    st.markdown(f"""
+    <style>
+        .topnav {{
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            background-color: {BG_CARD};
+            border-bottom: 2px solid {C_PRIMARY};
+            padding: 0.5rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }}
+        .topnav a {{
+            color: {C_NEUTRAL} !important;
+            text-decoration: none;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s;
+            cursor: pointer;
+        }}
+        .topnav a:hover {{
+            background-color: {C_PRIMARY};
+            color: white !important;
+        }}
+        .topnav a.active {{
+            background-color: {C_PRIMARY};
+            color: white !important;
+        }}
+    </style>
+    <div class="topnav">
+        <span style="color:{C_PRIMARY}; font-weight:800; font-size:1rem; margin-right:1rem;">⚽ WC2026</span>
+        <a href="?page=home" class="{'active' if st.session_state.page == 'home' else ''}">🏠 Home</a>
+        <a href="?page=eda" class="{'active' if st.session_state.page == 'eda' else ''}">📊 EDA</a>
+        <a href="?page=goals" class="{'active' if st.session_state.page == 'goals' else ''}">⚽ Goal Prediction</a>
+        <a href="?page=clustering" class="{'active' if st.session_state.page == 'clustering' else ''}">🔵 Clustering</a>
+        <a href="?page=simulation" class="{'active' if st.session_state.page == 'simulation' else ''}">🏆 Simulation</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Handle query param navigation from top navbar clicks
+    query_params = st.query_params
+    if 'page' in query_params:
+        new_page = query_params['page']
+        if new_page != st.session_state.page:
+            st.session_state.page = new_page
+            st.rerun()
+
+    # Sidebar kept for extra controls
     with st.sidebar:
         st.markdown("## Navigation")
         st.markdown("---")
         
         if st.button("Home", use_container_width=True):
             st.session_state.page = "home"
+            st.query_params['page'] = "home"
             st.rerun()
         
         if st.button("EDA", use_container_width=True):
             st.session_state.page = "eda"
+            st.query_params['page'] = "eda"
             st.rerun()
         
         if st.button("Goal Prediction", use_container_width=True):
             st.session_state.page = "goals"
+            st.query_params['page'] = "goals"
             st.rerun()
         
         if st.button("Clustering", use_container_width=True):
             st.session_state.page = "clustering"
+            st.query_params['page'] = "clustering"
             st.rerun()
         
         if st.button("Simulation", use_container_width=True):
             st.session_state.page = "simulation"
+            st.query_params['page'] = "simulation"
             st.rerun()
-    
+
     if st.session_state.page == 'home':
         home_page()
     elif st.session_state.page == 'eda':
