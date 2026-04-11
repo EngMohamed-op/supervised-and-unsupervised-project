@@ -706,42 +706,27 @@ function mkChart(id,type,data,opts={}){
 async function loadEda(){
   const grid=document.getElementById('eda-grid');
   grid.innerHTML=`
-    <div class="eda-card"><div class="eda-title">Q1 · Elo Rating Distribution</div><div class="eda-sub">Histogram of all team Elo ratings — elite teams visible on right</div><div class="chart-wrap"><canvas id="ch-elo"></canvas></div></div>
     <div class="eda-card"><div class="eda-title">Q2 · Match Outcome Distribution</div><div class="eda-sub">Home Win / Draw / Away Win percentage across all matches</div><div class="chart-wrap"><canvas id="ch-out"></canvas></div></div>
-    <div class="eda-card"><div class="eda-title">Q3 · Home vs Away Goals</div><div class="eda-sub">Goals distribution per match — home advantage clearly visible</div><div class="chart-wrap"><canvas id="ch-goals"></canvas></div></div>
     <div class="eda-card"><div class="eda-title">Q4 · Top 10 Teams by Win Rate</div><div class="eda-sub">Teams with 50+ matches — Brazil & Argentina lead</div><div class="chart-wrap"><canvas id="ch-wr"></canvas></div></div>
-    <div class="eda-card"><div class="eda-title">Q13 · WC 2026 Win Probability</div><div class="eda-sub">Top 15 teams from Monte Carlo simulation (5,000 runs)</div><div class="chart-wrap"><canvas id="ch-mc"></canvas></div></div>
+    <div class="eda-card"><div class="eda-title">Q8 · Correlation Heatmap</div><div class="eda-sub">Pearson correlation of key model features — elo_diff is the strongest predictor</div><div class="chart-wrap" style="height:280px"><canvas id="ch-corr"></canvas></div></div>
+    <div class="eda-card"><div class="eda-title">Q10 · Upset Rate vs Elo Gap</div><div class="eda-sub">How often does the weaker team win as the Elo gap grows?</div><div class="chart-wrap"><canvas id="ch-upset"></canvas></div></div>
+    <div class="eda-card" style="grid-column:1/-1"><div class="eda-title">Q12 · Elo Distribution by Confederation</div><div class="eda-sub">UEFA & CONMEBOL dominate — validates the Elo engine's confederation separation</div><div class="chart-wrap" style="height:280px"><canvas id="ch-conf"></canvas></div></div>
   `;
 
   try{
-    const [elo,out,goals,wr,mc]=await Promise.all([
-      api('/api/eda/elo_dist'),
+    const [out,wr,corr,upset,conf]=await Promise.all([
       api('/api/eda/outcomes'),
-      api('/api/eda/goals_dist'),
       api('/api/eda/winrate'),
-      api('/api/eda/mc_top15'),
+      api('/api/eda/correlation'),
+      api('/api/eda/upset_rate'),
+      api('/api/eda/elo_by_conf'),
     ]);
-
-    // Q1 Elo dist
-    mkChart('ch-elo','bar',{
-      labels:elo.bins.map(b=>Math.round(b)),
-      datasets:[{label:'Teams',data:elo.values,backgroundColor:'rgba(37,99,235,.7)',borderColor:'rgba(37,99,235,1)',borderWidth:1,borderRadius:3}]
-    },{plugins:{...CHART_DEFAULTS.plugins,annotation:{annotations:{mean:{type:'line',xMin:elo.bins.indexOf(elo.bins.reduce((p,c)=>Math.abs(c-elo.mean)<Math.abs(p-elo.mean)?c:p)),xMax:elo.bins.indexOf(elo.bins.reduce((p,c)=>Math.abs(c-elo.mean)<Math.abs(p-elo.mean)?c:p)),borderColor:'#ef4444',borderWidth:2,label:{content:'Mean',display:true}}}}},scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Elo Rating',color:'#9ca3af'}},y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Teams',color:'#9ca3af'}}}});
 
     // Q2 Outcomes
     mkChart('ch-out','doughnut',{
       labels:['Home Win','Draw','Away Win'],
       datasets:[{data:[out.home_win,out.draw,out.away_win],backgroundColor:['rgba(37,99,235,.8)','rgba(156,163,175,.8)','rgba(245,158,11,.8)'],borderColor:['#2563eb','#9ca3af','#f59e0b'],borderWidth:2}]
     },{plugins:{legend:{labels:{color:'#9ca3af',font:{size:12}}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}}});
-
-    // Q3 Goals
-    mkChart('ch-goals','bar',{
-      labels:goals.labels,
-      datasets:[
-        {label:`Home (avg ${goals.home_mean})`,data:goals.home,backgroundColor:'rgba(37,99,235,.7)',borderRadius:3},
-        {label:`Away (avg ${goals.away_mean})`,data:goals.away,backgroundColor:'rgba(245,158,11,.7)',borderRadius:3}
-      ]
-    },{scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Goals',color:'#9ca3af'}},y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Matches',color:'#9ca3af'}}}});
 
     // Q4 Win rate
     if(wr.teams&&wr.teams.length){
@@ -751,13 +736,71 @@ async function loadEda(){
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,max:100,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Win Rate: ${ctx.parsed.x}%`}}}});
     }
 
-    // MC Top 15
-    if(mc.results&&mc.results.length){
-      const top=mc.results.slice(0,12);
-      mkChart('ch-mc','bar',{
-        labels:top.map(r=>(r.flag||'')+' '+r.team),
-        datasets:[{label:'Win Probability',data:top.map(r=>+(r.probability*100).toFixed(1)),backgroundColor:top.map((_,i)=>i===0?'rgba(245,158,11,.9)':i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.5)'),borderRadius:4}]
-      },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.parsed.x}% chance to win`}}}});
+    // Q8 Correlation Heatmap
+    if(corr.cols&&corr.cols.length){
+      const n=corr.cols.length;
+      const flatData=[];
+      corr.cols.forEach((c,i)=>corr.cols.forEach((r,j)=>{
+        if(i>j) flatData.push({x:r,y:c,v:corr.matrix[i][j]});
+      }));
+      mkChart('ch-corr','scatter',{
+        datasets:[{
+          data:flatData.map(d=>({x:corr.cols.indexOf(d.x),y:corr.cols.indexOf(d.y),v:d.v})),
+          backgroundColor:flatData.map(d=>{
+            const v=d.v; const a=Math.abs(v);
+            return v>0?`rgba(37,99,235,${a})`:`rgba(239,68,68,${a})`;
+          }),
+          pointRadius:flatData.map(()=>18),
+          pointHoverRadius:20,
+        }]
+      },{
+        plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>{
+            const d=flatData[ctx.dataIndex];
+            return `${d.y} × ${d.x}: ${d.v}`;
+          }}}},
+        scales:{
+          x:{ticks:{color:'#9ca3af',font:{size:9},callback:(_,i)=>corr.cols[i]||''},grid:{color:'rgba(255,255,255,.05)'},min:-0.5,max:n-0.5},
+          y:{ticks:{color:'#9ca3af',font:{size:9},callback:(_,i)=>corr.cols[i]||''},grid:{color:'rgba(255,255,255,.05)'},min:-0.5,max:n-0.5},
+        }
+      });
+    }
+
+    // Q10 Upset Rate
+    if(upset.bins&&upset.bins.length){
+      mkChart('ch-upset','bar',{
+        labels:upset.bins,
+        datasets:[{
+          label:'Upset Rate (%)',
+          data:upset.upset_rate,
+          backgroundColor:upset.bins.map((_,i)=>i<2?'rgba(37,99,235,.8)':i<4?'rgba(245,158,11,.8)':'rgba(239,68,68,.8)'),
+          borderRadius:4
+        }]
+      },{scales:{...CHART_DEFAULTS.scales,
+        x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Elo Gap',color:'#9ca3af'}},
+        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Upset Rate (%)',color:'#9ca3af'}}
+      },plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Upset Rate: ${ctx.parsed.y}%`}}}});
+    }
+
+    // Q12 Elo by Confederation
+    if(conf.confederations&&conf.confederations.length){
+      const cd=conf.confederations;
+      mkChart('ch-conf','bar',{
+        labels:cd.map(c=>c.conf),
+        datasets:[
+          {label:'Median Elo',data:cd.map(c=>c.median),backgroundColor:cd.map((_,i)=>i===0?'rgba(37,99,235,.9)':i===1?'rgba(245,158,11,.8)':'rgba(147,197,253,.5)'),borderRadius:4},
+          {label:'Q1',data:cd.map(c=>c.q1),backgroundColor:'rgba(0,0,0,0)',borderWidth:0,pointRadius:0},
+          {label:'Q3',data:cd.map(c=>c.q3),backgroundColor:'rgba(0,0,0,0)',borderWidth:0,pointRadius:0},
+        ]
+      },{scales:{...CHART_DEFAULTS.scales,
+        x:{...CHART_DEFAULTS.scales.x},
+        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Elo Rating',color:'#9ca3af'}}
+      },plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const c=cd[ctx.dataIndex];
+          return `Median: ${c.median} | Q1: ${c.q1} | Q3: ${c.q3} | Teams: ${c.count}`;
+        }}}
+      }});
     }
 
   }catch(e){console.error('EDA error:',e)}
