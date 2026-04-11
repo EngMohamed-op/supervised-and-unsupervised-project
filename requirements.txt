@@ -1,7 +1,12 @@
 streamlit
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
 pandas
 numpy
 matplotlib
 seaborn
 scikit-learn
 xgboost
+joblib
