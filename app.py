@@ -89,14 +89,14 @@ WC2026_GROUPS = {
 @st.cache_resource
 def load_data():
     try:
-        elo_df = pd.read_csv("elo_snapshot_clustered.csv")
+        elo_df = pd.read_csv("saved_models/elo_snapshot_clustered.csv")
         if elo_df.empty:
             raise ValueError("elo_snapshot_clustered.csv is empty")
         
-        with open("form_dict.json", 'r') as f:
+        with open("saved_models/form_dict.json", 'r') as f:
             form_dict = json.load(f)
         
-        classifier = joblib.load("best_classifier.pkl")
+        classifier = joblib.load("saved_models/best_classifier.pkl")
         
         return elo_df, form_dict, classifier
     
@@ -192,52 +192,62 @@ def predict_match(team1, team2):
     
     try:
         proba = classifier.predict_proba(X)[0]
-        
         proba = np.array(proba, dtype=np.float64)
         proba = proba / proba.sum()
         
         team1_prob = float(proba[0])
         team2_prob = float(proba[1])
         
-        winner = np.random.choice([team1, team2], p=[team1_prob, team2_prob])
+        temperature = 0.8
+        probs = np.array([team1_prob, team2_prob]) ** temperature
+        probs = probs / probs.sum()
+        
+        winner = np.random.choice([team1, team2], p=probs)
         
         return winner, team1_prob, team2_prob
     
     except Exception as e:
         team1_prob = 0.55
         team2_prob = 0.45
-        winner = np.random.choice([team1, team2], p=[team1_prob, team2_prob])
+        temperature = 0.8
+        probs = np.array([team1_prob, team2_prob]) ** temperature
+        probs = probs / probs.sum()
+        winner = np.random.choice([team1, team2], p=probs)
         return winner, team1_prob, team2_prob
 
-def get_group_standings():
-    """Calculate group standings based on Elo ratings and form"""
+def simulate_group_stage():
+    """Simulate group stage matches and return standings"""
     standings = {}
     
     for group_letter, teams in WC2026_GROUPS.items():
-        if len(teams) < 3:
-            continue
-            
-        group_scores = []
-        for team in teams:
-            elo = team_elo_dict.get(team, 800)
-            form = team_form_dict.get(team, 0.5)
-            combined_score = elo + (form * 100)
-            group_scores.append((team, combined_score))
+        team_points = {team: 0 for team in teams}
         
-        group_scores.sort(key=lambda x: x[1], reverse=True)
+        for i in range(len(teams)):
+            for j in range(i + 1, len(teams)):
+                team1 = teams[i]
+                team2 = teams[j]
+                
+                winner, prob1, prob2 = predict_match(team1, team2)
+                
+                if winner == team1:
+                    team_points[team1] += 3
+                else:
+                    team_points[team2] += 3
+        
+        sorted_teams = sorted(team_points.items(), key=lambda x: x[1], reverse=True)
         
         standings[group_letter] = {
-            'first': group_scores[0][0],
-            'second': group_scores[1][0] if len(group_scores) > 1 else group_scores[0][0],
-            'third': group_scores[2][0] if len(group_scores) > 2 else group_scores[1][0],
-            'third_score': group_scores[2][1] if len(group_scores) > 2 else 0
+            'first': sorted_teams[0][0],
+            'second': sorted_teams[1][0],
+            'third': sorted_teams[2][0],
+            'third_points': sorted_teams[2][1]
         }
     
     return standings
 
 def get_round_of_32():
     """Get 32 teams for Round of 32"""
-    group_standings = get_group_standings()
+    group_standings = simulate_group_stage()
     
     all_first = []
     all_second = []
@@ -247,7 +257,7 @@ def get_round_of_32():
         standing = group_standings[group_letter]
         all_first.append(standing['first'])
         all_second.append(standing['second'])
-        all_third.append((standing['third'], standing['third_score'], group_letter))
+        all_third.append((standing['third'], standing['third_points'], group_letter))
     
     all_third.sort(key=lambda x: x[1], reverse=True)
     best_8_third = [team[0] for team in all_third[:8]]
@@ -668,7 +678,7 @@ def eda_page():
     
     with c3:
         st.markdown("### Win Rate Distribution")
-        fig, ax = plt.subplots(figsize=(8, 5))
+        fig, ax = plt.subplots(figsize=(8,5))
         fig.patch.set_facecolor(BG_DARK)
         ax.set_facecolor(BG_CARD)
         
