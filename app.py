@@ -192,104 +192,231 @@ def predict_match(team1, team2):
     
     try:
         proba = classifier.predict_proba(X)[0]
-        prediction = classifier.predict(X)[0]
         
         proba = np.array(proba, dtype=np.float64)
         proba = proba / proba.sum()
         
-        if prediction == 0:
-            winner = team1
-            team1_prob = float(proba[0])
-            team2_prob = float(proba[1])
-        else:
-            winner = team2
-            team1_prob = float(proba[0])
-            team2_prob = float(proba[1])
+        team1_prob = float(proba[0])
+        team2_prob = float(proba[1])
+        
+        winner = np.random.choice([team1, team2], p=[team1_prob, team2_prob])
         
         return winner, team1_prob, team2_prob
     
     except Exception as e:
-        if team1_features['elo'] > team2_features['elo']:
-            return team1, 0.55, 0.45
-        else:
-            return team2, 0.45, 0.55
+        team1_prob = 0.55
+        team2_prob = 0.45
+        winner = np.random.choice([team1, team2], p=[team1_prob, team2_prob])
+        return winner, team1_prob, team2_prob
 
-def simulate_full_bracket(group_winners):
+def get_group_standings():
+    """Calculate group standings based on Elo ratings and form"""
+    standings = {}
+    
+    for group_letter, teams in WC2026_GROUPS.items():
+        if len(teams) < 3:
+            continue
+            
+        group_scores = []
+        for team in teams:
+            elo = team_elo_dict.get(team, 800)
+            form = team_form_dict.get(team, 0.5)
+            combined_score = elo + (form * 100)
+            group_scores.append((team, combined_score))
+        
+        group_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        standings[group_letter] = {
+            'first': group_scores[0][0],
+            'second': group_scores[1][0] if len(group_scores) > 1 else group_scores[0][0],
+            'third': group_scores[2][0] if len(group_scores) > 2 else group_scores[1][0],
+            'third_score': group_scores[2][1] if len(group_scores) > 2 else 0
+        }
+    
+    return standings
+
+def get_round_of_32():
+    """Get 32 teams for Round of 32"""
+    group_standings = get_group_standings()
+    
+    all_first = []
+    all_second = []
+    all_third = []
+    
+    for group_letter in sorted(group_standings.keys()):
+        standing = group_standings[group_letter]
+        all_first.append(standing['first'])
+        all_second.append(standing['second'])
+        all_third.append((standing['third'], standing['third_score'], group_letter))
+    
+    all_third.sort(key=lambda x: x[1], reverse=True)
+    best_8_third = [team[0] for team in all_third[:8]]
+    
+    qualified_teams = all_first + all_second + best_8_third
+    
+    left_side = qualified_teams[:16]
+    right_side = qualified_teams[16:32]
+    
+    return {
+        'left': left_side,
+        'right': right_side,
+        'all': qualified_teams,
+        'group_standings': group_standings,
+        'best_third': best_8_third,
+        'all_third': all_third
+    }
+
+def simulate_full_bracket(r32_data):
+    """Simulate the full tournament"""
     bracket = {
-        'round_of_32': [],
-        'round_of_16': [],
-        'quarter_finals': [],
-        'semi_finals': [],
+        'left_r32': [],
+        'right_r32': [],
+        'left_r16': [],
+        'right_r16': [],
+        'left_qf': [],
+        'right_qf': [],
+        'left_sf': [],
+        'right_sf': [],
         'final': []
     }
     
-    for i in range(0, len(group_winners), 2):
-        team1 = group_winners[i]
-        team2 = group_winners[i + 1]
-        winner, prob1, prob2 = predict_match(team1, team2)
+    left_teams = r32_data['left']
+    right_teams = r32_data['right']
+    
+    for i in range(0, len(left_teams), 2):
+        if i + 1 < len(left_teams):
+            team1 = left_teams[i]
+            team2 = left_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['left_r32'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    for i in range(0, len(right_teams), 2):
+        if i + 1 < len(right_teams):
+            team1 = right_teams[i]
+            team2 = right_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['right_r32'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    left_r16_teams = [match['winner'] for match in bracket['left_r32']]
+    right_r16_teams = [match['winner'] for match in bracket['right_r32']]
+    
+    for i in range(0, len(left_r16_teams), 2):
+        if i + 1 < len(left_r16_teams):
+            team1 = left_r16_teams[i]
+            team2 = left_r16_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['left_r16'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    for i in range(0, len(right_r16_teams), 2):
+        if i + 1 < len(right_r16_teams):
+            team1 = right_r16_teams[i]
+            team2 = right_r16_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['right_r16'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    left_qf_teams = [match['winner'] for match in bracket['left_r16']]
+    right_qf_teams = [match['winner'] for match in bracket['right_r16']]
+    
+    for i in range(0, len(left_qf_teams), 2):
+        if i + 1 < len(left_qf_teams):
+            team1 = left_qf_teams[i]
+            team2 = left_qf_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['left_qf'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    for i in range(0, len(right_qf_teams), 2):
+        if i + 1 < len(right_qf_teams):
+            team1 = right_qf_teams[i]
+            team2 = right_qf_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['right_qf'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    left_sf_teams = [match['winner'] for match in bracket['left_qf']]
+    right_sf_teams = [match['winner'] for match in bracket['right_qf']]
+    
+    for i in range(0, len(left_sf_teams), 2):
+        if i + 1 < len(left_sf_teams):
+            team1 = left_sf_teams[i]
+            team2 = left_sf_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['left_sf'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    for i in range(0, len(right_sf_teams), 2):
+        if i + 1 < len(right_sf_teams):
+            team1 = right_sf_teams[i]
+            team2 = right_sf_teams[i + 1]
+            winner, prob1, prob2 = predict_match(team1, team2)
+            
+            bracket['right_sf'].append({
+                'team1': team1,
+                'team2': team2,
+                'winner': winner,
+                'prob1': prob1,
+                'prob2': prob2
+            })
+    
+    left_final_team = bracket['left_sf'][0]['winner'] if len(bracket['left_sf']) > 0 else None
+    right_final_team = bracket['right_sf'][0]['winner'] if len(bracket['right_sf']) > 0 else None
+    
+    if left_final_team and right_final_team and left_final_team != right_final_team:
+        winner, prob1, prob2 = predict_match(left_final_team, right_final_team)
         
-        bracket['round_of_32'].append({
-            'team1': team1,
-            'team2': team2,
+        bracket['final'].append({
+            'team1': left_final_team,
+            'team2': right_final_team,
             'winner': winner,
             'prob1': prob1,
             'prob2': prob2
         })
-    
-    round_16_teams = [match['winner'] for match in bracket['round_of_32']]
-    for i in range(0, len(round_16_teams), 2):
-        team1 = round_16_teams[i]
-        team2 = round_16_teams[i + 1]
-        winner, prob1, prob2 = predict_match(team1, team2)
-        
-        bracket['round_of_16'].append({
-            'team1': team1,
-            'team2': team2,
-            'winner': winner,
-            'prob1': prob1,
-            'prob2': prob2
-        })
-    
-    qf_teams = [match['winner'] for match in bracket['round_of_16']]
-    for i in range(0, len(qf_teams), 2):
-        team1 = qf_teams[i]
-        team2 = qf_teams[i + 1]
-        winner, prob1, prob2 = predict_match(team1, team2)
-        
-        bracket['quarter_finals'].append({
-            'team1': team1,
-            'team2': team2,
-            'winner': winner,
-            'prob1': prob1,
-            'prob2': prob2
-        })
-    
-    sf_teams = [match['winner'] for match in bracket['quarter_finals']]
-    for i in range(0, len(sf_teams), 2):
-        team1 = sf_teams[i]
-        team2 = sf_teams[i + 1]
-        winner, prob1, prob2 = predict_match(team1, team2)
-        
-        bracket['semi_finals'].append({
-            'team1': team1,
-            'team2': team2,
-            'winner': winner,
-            'prob1': prob1,
-            'prob2': prob2
-        })
-    
-    final_teams = [match['winner'] for match in bracket['semi_finals']]
-    team1 = final_teams[0]
-    team2 = final_teams[1]
-    winner, prob1, prob2 = predict_match(team1, team2)
-    
-    bracket['final'].append({
-        'team1': team1,
-        'team2': team2,
-        'winner': winner,
-        'prob1': prob1,
-        'prob2': prob2
-    })
     
     return bracket
 
@@ -353,19 +480,19 @@ def render_final_box(team1, team2, winner, prob1, prob2):
 def display_knockout_bracket(bracket):
     st.markdown("### Tournament Bracket")
     
-    r32_left = bracket['round_of_32'][:16]
-    r32_right = bracket['round_of_32'][16:]
+    r32_left = bracket.get('left_r32', [])
+    r32_right = bracket.get('right_r32', [])
     
-    r16_left = bracket['round_of_16'][:8]
-    r16_right = bracket['round_of_16'][8:]
+    r16_left = bracket.get('left_r16', [])
+    r16_right = bracket.get('right_r16', [])
     
-    qf_left = bracket['quarter_finals'][:4]
-    qf_right = bracket['quarter_finals'][4:]
+    qf_left = bracket.get('left_qf', [])
+    qf_right = bracket.get('right_qf', [])
     
-    sf_left = bracket['semi_finals'][:1]
-    sf_right = bracket['semi_finals'][1:]
+    sf_left = bracket.get('left_sf', [])
+    sf_right = bracket.get('right_sf', [])
     
-    final = bracket['final'][0]
+    final = bracket.get('final', [])
     
     cols = st.columns([1.5, 1, 1, 0.8, 1, 0.8, 1, 1, 1.5])
     
@@ -402,8 +529,9 @@ def display_knockout_bracket(bracket):
     with cols[4]:
         st.markdown('<div style="font-size: 10px; font-weight: bold; color: #FFD700; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">FINAL</div>', unsafe_allow_html=True)
         st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
-        html = render_final_box(final['team1'], final['team2'], final['winner'], final['prob1'], final['prob2'])
-        st.markdown(html, unsafe_allow_html=True)
+        if len(final) > 0:
+            html = render_final_box(final[0]['team1'], final[0]['team2'], final[0]['winner'], final[0]['prob1'], final[0]['prob2'])
+            st.markdown(html, unsafe_allow_html=True)
     
     with cols[5]:
         st.markdown('<div style="font-size: 9px; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 8px; text-transform: uppercase;">SF</div>', unsafe_allow_html=True)
@@ -781,51 +909,100 @@ def simulation_page():
     st.markdown("## World Cup 2026 Simulation")
     st.markdown("---")
     
+    st.markdown("### Group Stage Teams")
+    
+    cols_per_row = 3
+    groups_list = list(WC2026_GROUPS.items())
+    
+    for i in range(0, len(groups_list), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j, col in enumerate(cols):
+            if i + j < len(groups_list):
+                group_letter, teams = groups_list[i + j]
+                with col:
+                    st.markdown(f"""
+                    <div style="background: {BG_CARD}; border: 1px solid {BORDER_COLOR}; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; color: {C_PRIMARY}; font-size: 1.2rem; margin-bottom: 0.5rem;">Group {group_letter}</div>
+                        <div style="color: #aaa; font-size: 0.9rem;">
+                            {', '.join(teams)}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
     st.sidebar.markdown("## Simulation Controls")
     st.sidebar.markdown("---")
     
-    shuffle_teams = st.sidebar.checkbox("Shuffle teams for Round of 32", value=True)
-    
-    st.sidebar.markdown("---")
-    
-    if st.sidebar.button("Simulate Tournament", use_container_width=True, type="primary"):
-        all_teams = []
-        for grp, teams in WC2026_GROUPS.items():
-            all_teams.extend(teams)
-        
-        if shuffle_teams:
-            shuffled_teams = all_teams.copy()
-            np.random.shuffle(shuffled_teams)
-        else:
-            shuffled_teams = all_teams
-        
+    if st.button("Simulate Tournament", use_container_width=True, type="primary"):
         with st.spinner("Simulating tournament..."):
-            bracket = simulate_full_bracket(shuffled_teams)
+            r32_data = get_round_of_32()
+            bracket = simulate_full_bracket(r32_data)
         
         st.session_state.bracket = bracket
+        st.session_state.r32_data = r32_data
     
     if 'bracket' in st.session_state:
+        st.markdown("---")
+        st.markdown("### Group Stage Results")
+        
+        group_results = st.session_state.r32_data['group_standings']
+        cols_results = 4
+        groups_results_list = list(group_results.items())
+        
+        for i in range(0, len(groups_results_list), cols_results):
+            cols = st.columns(cols_results)
+            for j, col in enumerate(cols):
+                if i + j < len(groups_results_list):
+                    group_letter, result = groups_results_list[i + j]
+                    with col:
+                        st.markdown(f"""
+                        <div style="background: {BG_CARD}; border: 1px solid {C_PRIMARY}; border-radius: 8px; padding: 0.8rem; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                            <div style="font-weight: 700; color: {C_PRIMARY}; margin-bottom: 0.5rem;">Group {group_letter}</div>
+                            <div style="color: #00ff00; margin-bottom: 0.3rem;">🥇 {result['first']}</div>
+                            <div style="color: #ffa500; margin-bottom: 0.3rem;">🥈 {result['second']}</div>
+                            <div style="color: #cd7f32; font-size: 0.8rem;">🥉 {result['third']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown("### Best 3rd Place Qualifiers")
+        
+        best_third = st.session_state.r32_data['best_third']
+        col_third1, col_third2, col_third3, col_third4 = st.columns(4)
+        cols_third = [col_third1, col_third2, col_third3, col_third4]
+        
+        for idx, team in enumerate(best_third):
+            with cols_third[idx % 4]:
+                st.markdown(f"""
+                <div style="background: {BG_CARD}; border: 1px solid {C_ACCENT}; border-radius: 8px; padding: 0.8rem; margin-bottom: 0.5rem; text-align: center;">
+                    <div style="color: {C_ACCENT}; font-weight: 700;">{team}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("---")
         display_knockout_bracket(st.session_state.bracket)
         
         st.markdown("---")
         st.markdown("### Tournament Champion")
         
-        champion = st.session_state.bracket['final'][0]['winner']
-        champion_prob = st.session_state.bracket['final'][0]['prob1'] if st.session_state.bracket['final'][0]['team1'] == champion else st.session_state.bracket['final'][0]['prob2']
-        
-        flag_code = get_flag_code(champion)
-        flag_url = f"https://flagcdn.com/w80/{flag_code}.png"
-        
-        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
-        with col_c2:
-            st.markdown(f"""
-            <div style="background: linear-gradient(145deg, #161b22 0%, #1a2332 100%); border: 3px solid #1f77b4; border-radius: 12px; padding: 2rem; text-align: center; box-shadow: 0 8px 30px rgba(31,119,180,0.3);">
-                <div style="font-size: 13px; color: #888; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">World Cup Champion</div>
-                <img src="{flag_url}" style="width: 80px; height: 53px; border-radius: 4px; margin-bottom: 15px;" onerror="this.style.display='none'">
-                <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-bottom: 10px;">{champion}</div>
-                <div style="font-size: 13px; color: #1f77b4;">Win Probability: {champion_prob:.1%}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        if 'final' in st.session_state.bracket and len(st.session_state.bracket['final']) > 0:
+            champion = st.session_state.bracket['final'][0]['winner']
+            champion_prob = st.session_state.bracket['final'][0]['prob1'] if st.session_state.bracket['final'][0]['team1'] == champion else st.session_state.bracket['final'][0]['prob2']
+            
+            flag_code = get_flag_code(champion)
+            flag_url = f"https://flagcdn.com/w80/{flag_code}.png"
+            
+            col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+            with col_c2:
+                st.markdown(f"""
+                <div style="background: linear-gradient(145deg, #161b22 0%, #1a2332 100%); border: 3px solid #1f77b4; border-radius: 12px; padding: 2rem; text-align: center; box-shadow: 0 8px 30px rgba(31,119,180,0.3);">
+                    <div style="font-size: 13px; color: #888; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">World Cup Champion</div>
+                    <img src="{flag_url}" style="width: 80px; height: 53px; border-radius: 4px; margin-bottom: 15px;" onerror="this.style.display='none'">
+                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-bottom: 10px;">{champion}</div>
+                    <div style="font-size: 13px; color: #1f77b4;">Win Probability: {champion_prob:.1%}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 def main():
     if 'page' not in st.session_state:
