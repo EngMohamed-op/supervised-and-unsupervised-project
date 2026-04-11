@@ -202,7 +202,6 @@ tbody td{padding:10px 13px}
     <button class="tb active" onclick="sw('predict',this)">Match Predictor</button>
     <button class="tb" onclick="sw('bracket',this)">WC Bracket</button>
     <button class="tb" onclick="sw('groups',this)">Groups</button>
-    <button class="tb" onclick="sw('rankings',this)">Rankings</button>
     <button class="tb" onclick="sw('montecarlo',this)">Monte Carlo</button>
     <button class="tb" onclick="sw('eda',this)">Analysis</button>
   </div>
@@ -308,19 +307,6 @@ tbody td{padding:10px 13px}
   <div id="groups-container" class="gg"><div class="loading"><div class="spin"></div></div></div>
 </section>
 
-<!-- ═══ RANKINGS ═══ -->
-<section id="tab-rankings" class="panel">
-  <div class="sh"><div class="st">Team Rankings</div><p class="ss">Sorted by Elo rating</p></div>
-  <div class="card">
-    <div class="tw">
-      <table>
-        <thead><tr><th>#</th><th>Team</th><th>Group</th><th>Elo</th><th>Form</th><th>Tier</th></tr></thead>
-        <tbody id="rank-body"><tr><td colspan="6" style="color:var(--dim);padding:22px"><div class="spin" style="display:inline-block"></div></td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
 <!-- ═══ MONTE CARLO ═══ -->
 <section id="tab-montecarlo" class="panel">
   <div class="sh"><div class="st">Monte Carlo</div><p class="ss">5,000 full tournament simulations — championship win probability</p></div>
@@ -356,7 +342,6 @@ function sw(name,btn){
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
   if(name==='groups'&&!document.getElementById('groups-container').querySelector('.gc')) loadGroups();
-  if(name==='rankings'&&document.getElementById('rank-body').children.length<=1) loadRankings();
   if(name==='montecarlo'&&!document.getElementById('mc-podium').querySelector('.pc')) loadMC();
   if(name==='eda'&&document.getElementById('eda-grid').querySelector('.loading')) loadEda();
 }
@@ -577,25 +562,6 @@ function quickPredict(name){
 }
 
 // ── Rankings ───────────────────────────────────────────────────────────────
-async function loadRankings(){
-  try{
-    if(!WC_TEAMS.length){const d=await api('/api/teams/wc');WC_TEAMS=d.teams}
-    const maxE=Math.max(...WC_TEAMS.map(t=>t.elo)),minE=Math.min(...WC_TEAMS.map(t=>t.elo));
-    function tier(e){const r=maxE-minE;return e>=minE+r*.67?['Strong','tb-s']:e>=minE+r*.33?['Medium','tb-m']:['Weak','tb-w']}
-    document.getElementById('rank-body').innerHTML=WC_TEAMS.map((t,i)=>{
-      const [tl,tc]=tier(t.elo);
-      return`<tr>
-        <td><span class="rn">${i+1}</span></td>
-        <td><span style="margin-right:5px">${t.flag||''}</span><strong>${t.name}</strong></td>
-        <td style="color:var(--amber);font-weight:600">Group ${t.group}</td>
-        <td><span class="ev">${t.elo}</span></td>
-        <td style="color:var(--gray)">${(t.form*100).toFixed(0)}%</td>
-        <td><span class="${tc}">${tl}</span></td>
-      </tr>`;
-    }).join('');
-  }catch(e){}
-}
-
 // ── MC ─────────────────────────────────────────────────────────────────────
 async function loadMC(){
   try{
@@ -637,7 +603,7 @@ async function loadEda(){
     <div class="eda-card"><div class="eda-title">Q2 · Match Outcome Distribution</div><div class="eda-sub">Home Win / Draw / Away Win percentage across all matches</div><img src="/static/eda_plots/02_outcome_distribution.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
     <div class="eda-card"><div class="eda-title">Q4 · Top 10 Teams by Win Rate</div><div class="eda-sub">Teams with 50+ matches — Brazil & Argentina lead</div><img src="/static/eda_plots/04_top10_win_rate.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
     <div class="eda-card"><div class="eda-title">Q8 · Correlation Heatmap</div><div class="eda-sub">Pearson correlation of key model features — elo_diff is the strongest predictor</div><img src="/static/eda_plots/08_correlation_heatmap.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
-    <div class="eda-card"><div class="eda-title">Q10 · Upset Rate vs Elo Gap</div><div class="eda-sub">How often does the weaker team win as the Elo gap grows?</div><img src="/static/eda_plots/10_11_upset_and_winrate.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
+    <div class="eda-card"><div class="eda-title">Q9 · Elo Difference vs Match Outcome</div><div class="eda-sub">Box plot of elo_diff split by result — strongest sanity check for the Elo engine</div><img src="/static/eda_plots/09_elo_diff_vs_outcome.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
     <div class="eda-card"><div class="eda-title">Q12 · Elo Distribution by Confederation</div><div class="eda-sub">UEFA & CONMEBOL dominate — validates the Elo engine's confederation separation</div><img src="/static/eda_plots/12_elo_by_confederation.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
   `;
 }
