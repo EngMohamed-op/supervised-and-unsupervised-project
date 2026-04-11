@@ -13,9 +13,9 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="World Cup 2026 Prediction",
-    page_icon="house",
+    page_icon="⚽",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 BG_DARK = "#0d1117"
@@ -29,44 +29,89 @@ TEXT_WHITE = "#FFFFFF"
 
 st.markdown(f"""
 <style>
-    .stApp {{
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    html, body, .stApp {{
         background-color: {BG_DARK};
         color: {TEXT_WHITE};
+        font-family: 'Inter', sans-serif;
     }}
-    
     .main .block-container {{
-        padding-top: 2rem;
+        padding-top: 0.5rem;
         padding-bottom: 2rem;
         max-width: 1600px;
     }}
-    
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
-    
+    [data-testid="collapsedControl"] {{display: none;}}
+    section[data-testid="stSidebar"] {{display: none;}}
+
     h1, h2, h3, h4, h5, h6, p, span, label {{
         color: {TEXT_WHITE} !important;
+        font-family: 'Inter', sans-serif;
     }}
-    
-    h1 {{
-        border-bottom: 3px solid {C_PRIMARY};
-        padding-bottom: 10px;
+    h2 {{
+        font-size: 1.6rem;
+        font-weight: 800;
+        border-left: 4px solid {C_PRIMARY};
+        padding-left: 12px;
+        margin-bottom: 1rem;
     }}
-    
     hr {{
         border: none;
         height: 1px;
-        background: linear-gradient(90deg, {BG_CARD}, {BORDER_COLOR}, {BG_CARD});
-        margin: 2rem 0;
+        background: linear-gradient(90deg, transparent, {BORDER_COLOR}, transparent);
+        margin: 1.5rem 0;
     }}
-    
-    .stButton > button {{
-        background-color: {C_PRIMARY} !important;
+
+    /* Navbar buttons */
+    div[data-testid="stHorizontalBlock"] .stButton > button {{
+        background: transparent !important;
+        border: none !important;
+        color: {C_NEUTRAL} !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        padding: 0.45rem 1.1rem !important;
+        border-radius: 6px !important;
+        white-space: nowrap;
+    }}
+    div[data-testid="stHorizontalBlock"] .stButton > button:hover {{
+        background: {C_PRIMARY} !important;
         color: white !important;
     }}
-    
+
+    /* Primary buttons */
+    .stButton > button[kind="primary"] {{
+        background: linear-gradient(135deg, {C_PRIMARY}, #1557a0) !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(31,119,180,0.4) !important;
+    }}
+    .stButton > button[kind="primary"]:hover {{
+        box-shadow: 0 6px 20px rgba(31,119,180,0.6) !important;
+        transform: translateY(-1px) !important;
+    }}
+
+    /* Regular buttons */
+    .stButton > button {{
+        background-color: {BG_CARD} !important;
+        color: white !important;
+        border: 1px solid {BORDER_COLOR} !important;
+        border-radius: 8px !important;
+    }}
     .stButton > button:hover {{
-        background-color: #1557a0 !important;
+        border-color: {C_PRIMARY} !important;
+        color: {C_PRIMARY} !important;
+    }}
+
+    .stSelectbox > div > div {{
+        background-color: {BG_CARD} !important;
+        border: 1px solid {BORDER_COLOR} !important;
+        color: white !important;
+        border-radius: 8px !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -516,7 +561,7 @@ def _match_card_html(team1, team2, winner, prob1, prob2, is_final=False):
     </div>"""
 
 def display_knockout_bracket(bracket):
-    st.markdown("### Tournament Bracket")
+    st.markdown("### 🏆 Tournament Bracket")
 
     r32_l = bracket.get('left_r32',  [])
     r32_r = bracket.get('right_r32', [])
@@ -528,60 +573,57 @@ def display_knockout_bracket(bracket):
     sf_r  = bracket.get('right_sf',  [])
     final = bracket.get('final',     [])
 
-    # Card height + gap used to space rounds vertically
-    CARD_H  = 58   # px  (approximate rendered height of one match card)
-    GAP     = 10   # px  gap between cards within the same round
+    # Each card is ~62px tall. Between rounds, cards are spaced by 2x previous gap.
+    # We offset each card by (slot_height * slot_index + slot_height/2 - card_height/2)
+    CARD_H = 62
 
-    def col_html(matches, round_label, is_final_col=False, color="#1f77b4"):
-        """Build one round column: header + evenly spaced cards."""
-        n = len(matches)
-        # Total height the column should occupy
-        total = n * CARD_H + max(0, n - 1) * GAP
-
-        header_color = "#FFD700" if is_final_col else color
-        html = f"""
-        <div style="display:flex;flex-direction:column;align-items:stretch;">
-            <div style="font-size:9px;font-weight:bold;color:{header_color};
-                        text-align:center;margin-bottom:8px;text-transform:uppercase;
-                        letter-spacing:1px;">{round_label}</div>
-            <div style="display:flex;flex-direction:column;gap:{GAP}px;height:{total}px;justify-content:space-around;">
+    def cards_col(matches, label, total_slots, is_final=False):
         """
-        for m in matches:
-            html += _match_card_html(m['team1'], m['team2'], m['winner'],
-                                     m['prob1'], m['prob2'], is_final=is_final_col)
+        Render a round column.
+        total_slots = number of R32 matches (8) — all rounds share the same
+        total height so cards align visually across columns.
+        """
+        n = len(matches)
+        col_h = total_slots * CARD_H          # total column pixel height
+        slot_h = col_h / n if n else col_h    # height per card slot
+
+        header_color = "#FFD700" if is_final else "#1f77b4"
+        html = f"""<div style="display:flex;flex-direction:column;width:100%;">
+            <div style="font-size:9px;font-weight:bold;color:{header_color};
+                        text-align:center;margin-bottom:6px;text-transform:uppercase;
+                        letter-spacing:1px;">{label}</div>
+            <div style="position:relative;height:{col_h}px;">"""
+
+        for i, m in enumerate(matches):
+            top = i * slot_h + (slot_h - CARD_H) / 2
+            card = _match_card_html(m["team1"], m["team2"], m["winner"],
+                                    m["prob1"], m["prob2"], is_final=is_final)
+            html += f"""<div style="position:absolute;top:{top:.1f}px;left:0;right:0;">{card}</div>"""
+
         html += "</div></div>"
         return html
 
-    # Build each column
-    col_r32_l  = col_html(r32_l,  "R32")
-    col_r16_l  = col_html(r16_l,  "R16")
-    col_qf_l   = col_html(qf_l,   "QF")
-    col_sf_l   = col_html(sf_l,   "SF")
-    col_final  = col_html(final,  "FINAL", is_final_col=True)
-    col_sf_r   = col_html(sf_r,   "SF")
-    col_qf_r   = col_html(qf_r,   "QF")
-    col_r16_r  = col_html(r16_r,  "R16")
-    col_r32_r  = col_html(r32_r,  "R32")
+    SLOTS = 8  # R32 has 8 matches per side — defines column height
+
+    col_r32_l = cards_col(r32_l, "R32",   SLOTS)
+    col_r16_l = cards_col(r16_l, "R16",   SLOTS)
+    col_qf_l  = cards_col(qf_l,  "QF",    SLOTS)
+    col_sf_l  = cards_col(sf_l,  "SF",    SLOTS)
+    col_fin   = cards_col(final, "FINAL", SLOTS, is_final=True)
+    col_sf_r  = cards_col(sf_r,  "SF",    SLOTS)
+    col_qf_r  = cards_col(qf_r,  "QF",    SLOTS)
+    col_r16_r = cards_col(r16_r, "R16",   SLOTS)
+    col_r32_r = cards_col(r32_r, "R32",   SLOTS)
 
     full_html = f"""
-    <div style="overflow-x:auto;padding-bottom:8px;">
+    <div style="overflow-x:auto;padding:8px 0 16px;">
       <div style="display:grid;
-                  grid-template-columns: 2fr 1.4fr 1fr 0.8fr 0.9fr 0.8fr 1fr 1.4fr 2fr;
-                  gap:8px;
-                  align-items:start;
-                  min-width:900px;">
-        {col_r32_l}
-        {col_r16_l}
-        {col_qf_l}
-        {col_sf_l}
-        {col_final}
-        {col_sf_r}
-        {col_qf_r}
-        {col_r16_r}
-        {col_r32_r}
+                  grid-template-columns:1.8fr 1.3fr 1fr 0.8fr 0.85fr 0.8fr 1fr 1.3fr 1.8fr;
+                  column-gap:6px;
+                  min-width:860px;">
+        {col_r32_l}{col_r16_l}{col_qf_l}{col_sf_l}{col_fin}{col_sf_r}{col_qf_r}{col_r16_r}{col_r32_r}
       </div>
-    </div>
-    """
+    </div>"""
     st.markdown(full_html, unsafe_allow_html=True)
 
 def home_page():
@@ -1035,87 +1077,30 @@ def main():
     if 'page' not in st.session_state:
         st.session_state.page = 'home'
 
-    # --- Fixed top navigation bar ---
+    # ── Top navigation bar using st.columns ──────────────────────────
     st.markdown(f"""
-    <style>
-        .topnav {{
-            position: sticky;
-            top: 0;
-            z-index: 999;
-            background-color: {BG_CARD};
-            border-bottom: 2px solid {C_PRIMARY};
-            padding: 0.5rem 1rem;
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }}
-        .topnav a {{
-            color: {C_NEUTRAL} !important;
-            text-decoration: none;
-            padding: 0.4rem 1rem;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: background 0.2s;
-            cursor: pointer;
-        }}
-        .topnav a:hover {{
-            background-color: {C_PRIMARY};
-            color: white !important;
-        }}
-        .topnav a.active {{
-            background-color: {C_PRIMARY};
-            color: white !important;
-        }}
-    </style>
-    <div class="topnav">
-        <span style="color:{C_PRIMARY}; font-weight:800; font-size:1rem; margin-right:1rem;">⚽ WC2026</span>
-        <a href="?page=home" class="{'active' if st.session_state.page == 'home' else ''}">🏠 Home</a>
-        <a href="?page=eda" class="{'active' if st.session_state.page == 'eda' else ''}">📊 EDA</a>
-        <a href="?page=goals" class="{'active' if st.session_state.page == 'goals' else ''}">⚽ Goal Prediction</a>
-        <a href="?page=clustering" class="{'active' if st.session_state.page == 'clustering' else ''}">🔵 Clustering</a>
-        <a href="?page=simulation" class="{'active' if st.session_state.page == 'simulation' else ''}">🏆 Simulation</a>
+    <div style="background:{BG_CARD}; border-bottom:2px solid {C_PRIMARY};
+                padding:0.4rem 1rem; margin-bottom:1.5rem;
+                display:flex; align-items:center; gap:0.3rem; position:sticky; top:0; z-index:999;">
+        <span style="color:{C_PRIMARY}; font-weight:800; font-size:1rem; margin-right:0.8rem;">⚽ WC2026</span>
     </div>
     """, unsafe_allow_html=True)
 
-    # Handle query param navigation from top navbar clicks
-    query_params = st.query_params
-    if 'page' in query_params:
-        new_page = query_params['page']
-        if new_page != st.session_state.page:
-            st.session_state.page = new_page
-            st.rerun()
+    nav_cols = st.columns([0.8, 1, 1, 1.3, 1.1, 1.1, 3])
+    pages = [
+        ("nav_home",       "🏠 Home",            "home"),
+        ("nav_eda",        "📊 EDA",              "eda"),
+        ("nav_goals",      "⚽ Goals",            "goals"),
+        ("nav_clustering", "🔵 Clustering",       "clustering"),
+        ("nav_simulation", "🏆 Simulation",       "simulation"),
+    ]
+    for col, (key, label, page_id) in zip(nav_cols, pages):
+        with col:
+            if st.button(label, key=key, use_container_width=True):
+                st.session_state.page = page_id
+                st.rerun()
 
-    # Sidebar kept for extra controls
-    with st.sidebar:
-        st.markdown("## Navigation")
-        st.markdown("---")
-        
-        if st.button("Home", use_container_width=True):
-            st.session_state.page = "home"
-            st.query_params['page'] = "home"
-            st.rerun()
-        
-        if st.button("EDA", use_container_width=True):
-            st.session_state.page = "eda"
-            st.query_params['page'] = "eda"
-            st.rerun()
-        
-        if st.button("Goal Prediction", use_container_width=True):
-            st.session_state.page = "goals"
-            st.query_params['page'] = "goals"
-            st.rerun()
-        
-        if st.button("Clustering", use_container_width=True):
-            st.session_state.page = "clustering"
-            st.query_params['page'] = "clustering"
-            st.rerun()
-        
-        if st.button("Simulation", use_container_width=True):
-            st.session_state.page = "simulation"
-            st.query_params['page'] = "simulation"
-            st.rerun()
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     if st.session_state.page == 'home':
         home_page()
