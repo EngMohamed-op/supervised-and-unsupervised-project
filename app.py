@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -533,32 +534,25 @@ def render_final_box(team1, team2, winner, prob1, prob2):
     return html
 
 def _match_card_html(team1, team2, winner, prob1, prob2, is_final=False):
-    """Build a self-contained match card as HTML string."""
+    """Build match card HTML using CSS classes defined in components.html."""
     def flag(t):
         return f"https://flagcdn.com/w40/{get_flag_code(t)}.png"
 
-    border = "2px solid #FFD700" if is_final else "1px solid #30363d"
-    bg     = "linear-gradient(135deg,#161b22,#3a3000)" if is_final else "linear-gradient(135deg,#161b22,#1a2332)"
-    label  = '<div style="color:#FFD700;font-size:8px;font-weight:bold;text-align:center;margin-bottom:6px;letter-spacing:1px;">FINAL</div>' if is_final else ''
+    card_class = "card final-card" if is_final else "card"
+    final_label = '<div class="final-label">FINAL</div>' if is_final else ""
+    divider_class = "divider gold" if is_final else "divider"
 
     def row(team, prob):
-        win_badge = '<span style="color:#90EE90;font-size:7px;font-weight:bold;margin-left:2px;">✓</span>' if team == winner else ''
-        return f"""
-        <div style="display:flex;align-items:center;gap:5px;padding:3px 0;">
-            <img src="{flag(team)}" style="width:22px;height:15px;border-radius:2px;flex-shrink:0;" onerror="this.style.display='none'">
-            <span style="flex:1;color:white;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{team}</span>
-            <span style="color:#aaa;font-size:8px;">{prob:.0%}</span>
-            {win_badge}
-        </div>"""
+        badge = '<span class="win-badge">✓</span>' if team == winner else ""
+        return (f'<div class="team-row">' +
+                f'<img src="{flag(team)}" onerror="this.style.display=\'none\'">' +
+                f'<span class="team-name">{team}</span>' +
+                f'<span class="team-prob">{prob:.0%}</span>{badge}</div>')
 
-    divider_color = "#FFD700" if is_final else "#30363d"
-    return f"""
-    <div style="background:{bg};border:{border};border-radius:6px;padding:7px 8px;width:100%;box-sizing:border-box;">
-        {label}
-        {row(team1, prob1)}
-        <div style="height:1px;background:{divider_color};margin:3px 0;"></div>
-        {row(team2, prob2)}
-    </div>"""
+    return (f'<div class="{card_class}">{final_label}' +
+            row(team1, prob1) +
+            f'<div class="{divider_class}"></div>' +
+            row(team2, prob2) + '</div>')
 
 def display_knockout_bracket(bracket):
     st.markdown("### 🏆 Tournament Bracket")
@@ -578,28 +572,18 @@ def display_knockout_bracket(bracket):
     CARD_H = 62
 
     def cards_col(matches, label, total_slots, is_final=False):
-        """
-        Render a round column.
-        total_slots = number of R32 matches (8) — all rounds share the same
-        total height so cards align visually across columns.
-        """
         n = len(matches)
-        col_h = total_slots * CARD_H          # total column pixel height
-        slot_h = col_h / n if n else col_h    # height per card slot
-
-        header_color = "#FFD700" if is_final else "#1f77b4"
-        html = f"""<div style="display:flex;flex-direction:column;width:100%;">
-            <div style="font-size:9px;font-weight:bold;color:{header_color};
-                        text-align:center;margin-bottom:6px;text-transform:uppercase;
-                        letter-spacing:1px;">{label}</div>
-            <div style="position:relative;height:{col_h}px;">"""
-
+        col_h = total_slots * CARD_H
+        slot_h = col_h / n if n else col_h
+        label_color = "#FFD700" if is_final else "#1f77b4"
+        html = (f'<div class="round-col">' +
+                f'<div class="round-label" style="color:{label_color};">{label}</div>' +
+                f'<div class="slots">')
         for i, m in enumerate(matches):
             top = i * slot_h + (slot_h - CARD_H) / 2
             card = _match_card_html(m["team1"], m["team2"], m["winner"],
                                     m["prob1"], m["prob2"], is_final=is_final)
-            html += f"""<div style="position:absolute;top:{top:.1f}px;left:0;right:0;">{card}</div>"""
-
+            html += f'<div class="slot" style="top:{top:.1f}px;">{card}</div>'
         html += "</div></div>"
         return html
 
@@ -615,16 +599,58 @@ def display_knockout_bracket(bracket):
     col_r16_r = cards_col(r16_r, "R16",   SLOTS)
     col_r32_r = cards_col(r32_r, "R32",   SLOTS)
 
-    full_html = f"""
-    <div style="overflow-x:auto;padding:8px 0 16px;">
-      <div style="display:grid;
-                  grid-template-columns:1.8fr 1.3fr 1fr 0.8fr 0.85fr 0.8fr 1fr 1.3fr 1.8fr;
-                  column-gap:6px;
-                  min-width:860px;">
-        {col_r32_l}{col_r16_l}{col_qf_l}{col_sf_l}{col_fin}{col_sf_r}{col_qf_r}{col_r16_r}{col_r32_r}
-      </div>
-    </div>"""
-    st.markdown(full_html, unsafe_allow_html=True)
+    col_h = SLOTS * CARD_H
+    full_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {{ margin:0; padding:0; background:transparent; font-family:Inter,sans-serif; }}
+  .bracket {{
+    display:grid;
+    grid-template-columns:1.8fr 1.3fr 1fr 0.8fr 0.85fr 0.8fr 1fr 1.3fr 1.8fr;
+    column-gap:6px;
+    min-width:860px;
+    overflow-x:auto;
+    padding: 8px 4px 16px;
+    background: #0d1117;
+  }}
+  .round-col {{ display:flex; flex-direction:column; width:100%; }}
+  .round-label {{
+    font-size:9px; font-weight:bold; text-align:center;
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;
+  }}
+  .slots {{ position:relative; height:{col_h}px; }}
+  .slot {{ position:absolute; left:0; right:0; }}
+  .card {{
+    background: linear-gradient(135deg,#161b22,#1a2332);
+    border: 1px solid #30363d;
+    border-radius:6px; padding:7px 8px;
+    box-sizing:border-box;
+  }}
+  .card.final-card {{
+    background: linear-gradient(135deg,#161b22,#3a3000);
+    border: 2px solid #FFD700;
+    box-shadow: 0 4px 12px rgba(255,215,0,0.25);
+  }}
+  .final-label {{
+    color:#FFD700; font-size:8px; font-weight:bold;
+    text-align:center; margin-bottom:6px; letter-spacing:1px;
+  }}
+  .team-row {{ display:flex; align-items:center; gap:5px; padding:3px 0; }}
+  .team-row img {{ width:22px; height:15px; border-radius:2px; flex-shrink:0; }}
+  .team-name {{ flex:1; color:white; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+  .team-prob {{ color:#aaa; font-size:8px; }}
+  .win-badge {{ color:#90EE90; font-size:7px; font-weight:bold; margin-left:2px; }}
+  .divider {{ height:1px; background:#30363d; margin:3px 0; }}
+  .divider.gold {{ background:#FFD700; }}
+</style>
+</head>
+<body>
+<div class="bracket">
+  {col_r32_l}{col_r16_l}{col_qf_l}{col_sf_l}{col_fin}{col_sf_r}{col_qf_r}{col_r16_r}{col_r32_r}
+</div>
+</body></html>"""
+    components.html(full_html, height=col_h + 80, scrolling=False)
 
 def home_page():
     col1, col2, col3 = st.columns([1, 1, 1])
