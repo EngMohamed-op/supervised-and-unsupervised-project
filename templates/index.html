@@ -200,7 +200,6 @@ tbody td{padding:10px 13px}
 <nav>
   <div class="nav-inner">
     <button class="tb active" onclick="sw('predict',this)">Match Predictor</button>
-    <button class="tb" onclick="sw('goals',this)">Goal Predictor</button>
     <button class="tb" onclick="sw('bracket',this)">WC Bracket</button>
     <button class="tb" onclick="sw('groups',this)">Groups</button>
     <button class="tb" onclick="sw('rankings',this)">Rankings</button>
@@ -245,54 +244,22 @@ tbody td{padding:10px 13px}
         <div class="prow"><div class="plabel">Draw</div><div class="ptrack"><div class="pfill f-d" id="b-d" style="width:0%"></div></div><div class="pval" id="v-d"></div></div>
         <div class="prow"><div class="plabel" id="r-al">Away Win</div><div class="ptrack"><div class="pfill f-a" id="b-a" style="width:0%"></div></div><div class="pval" id="v-a"></div></div>
       </div>
-      <div class="pred-banner ph" id="pred-banner">
-        <div><div class="pred-lbl">Predicted Result</div><div class="pred-val" id="pred-val"></div></div>
-        <div style="text-align:right"><div class="pred-lbl">Model</div><div style="font-size:.8rem;color:var(--teal);font-weight:700" id="pred-src"></div></div>
-      </div>
-      <div class="scoreline">
-        <div class="sc-team"><div class="sc-flag" id="sc-hf"></div><div class="sc-name" id="sc-hn"></div><div class="sc-num" style="color:var(--primary)" id="sc-hg">—</div></div>
-        <div class="sc-dash">–</div>
-        <div class="sc-team"><div class="sc-flag" id="sc-af"></div><div class="sc-name" id="sc-an"></div><div class="sc-num" style="color:var(--amber)" id="sc-ag">—</div></div>
-      </div>
-      <div class="stats-row">
-        <div class="sm"><div class="sm-lbl">Home Goals</div><div class="sm-val" id="st-hg"></div></div>
-        <div class="sm"><div class="sm-lbl">Away Goals</div><div class="sm-val" id="st-ag"></div></div>
-        <div class="sm"><div class="sm-lbl">Predicted Score</div><div class="sm-val" id="st-score" style="color:var(--white)"></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ GOAL PREDICTOR ═══ -->
-<section id="tab-goals" class="panel">
-  <div class="sh"><div class="st">Goal Predictor</div>
-    <p class="ss">Expected goals (xG) using Poisson Regression model</p></div>
-  <div class="card">
-    <div class="ctitle">Select Teams</div>
-    <div class="frow">
-      <div class="fg"><label>Home Team</label><select id="g-home"><option value="">— Select Team —</option></select></div>
-      <div class="fg"><label>Away Team</label><select id="g-away"><option value="">— Select Team —</option></select></div>
-    </div>
-    <div class="chk-row"><input type="checkbox" id="g-neutral"><label for="g-neutral">Neutral venue</label></div>
-    <button class="btn btn-a" onclick="runGoals()">
-      <span id="gs-sp" class="spin hidden"></span>Predict Goals
-    </button>
-    <div id="goals-result" class="hidden" style="margin-top:20px">
-      <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
-      <div class="scoreline">
-        <div class="sc-team"><div class="sc-flag" id="gr-hf"></div><div class="sc-name" id="gr-hn"></div><div class="sc-num" style="color:var(--primary)" id="gr-hg">—</div><div style="font-size:.68rem;color:var(--dim)">Expected Goals</div></div>
-        <div class="sc-dash">–</div>
-        <div class="sc-team"><div class="sc-flag" id="gr-af"></div><div class="sc-name" id="gr-an"></div><div class="sc-num" style="color:var(--amber)" id="gr-ag">—</div><div style="font-size:.68rem;color:var(--dim)">Expected Goals</div></div>
-      </div>
-      <div class="stats-row" style="margin-top:0">
-        <div class="sm"><div class="sm-lbl">Total xG</div><div class="sm-val" id="gr-total" style="color:var(--white)"></div></div>
-        <div class="sm"><div class="sm-lbl">Home Elo</div><div class="sm-val" id="gr-he" style="color:var(--primary)"></div></div>
-        <div class="sm"><div class="sm-lbl">Away Elo</div><div class="sm-val" id="gr-ae" style="color:var(--amber)"></div></div>
-      </div>
-      <div class="stats-row">
-        <div class="sm"><div class="sm-lbl">Elo Diff</div><div class="sm-val" id="gr-diff" style="color:var(--teal)"></div></div>
-        <div class="sm"><div class="sm-lbl">Model</div><div class="sm-val" id="gr-src" style="font-size:.9rem;color:var(--gray)"></div></div>
-        <div class="sm"><div class="sm-lbl">Upset Risk</div><div class="sm-val" id="gr-up"></div></div>
+      <div class="pred-banner ph" id="pred-banner" style="margin-top:16px;padding:18px 20px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:20px">
+        <div style="text-align:center">
+          <div class="pred-lbl" style="margin-bottom:6px">Predicted Result</div>
+          <div style="display:flex;align-items:center;gap:16px;justify-content:center">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span id="res-hf" style="font-size:2rem"></span>
+              <span id="res-hn" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px"></span>
+            </div>
+            <div id="res-score" style="font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:4px;color:var(--white);line-height:1">–</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span id="res-af" style="font-size:2rem"></span>
+              <span id="res-an" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px"></span>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:.75rem;color:var(--teal);font-weight:700" id="pred-src"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -402,7 +369,7 @@ async function loadAllTeams(){
   try{
     const [wc,world]=await Promise.all([api('/api/teams/wc'),api('/api/teams/world')]);
     WC_TEAMS=wc.teams; WORLD_TEAMS=world.teams;
-    ['p-home','p-away','g-home','g-away'].forEach(id=>{
+    ['p-home','p-away'].forEach(id=>{
       const sel=document.getElementById(id);
       world.teams.forEach(t=>{
         const o=document.createElement('option');
@@ -468,53 +435,14 @@ function renderPredict(d){
   const pr=d.outcome.predicted_result;
   const bn=document.getElementById('pred-banner');
   bn.className='pred-banner '+(pr==='Home Win'?'ph':pr==='Draw'?'pd':'pa');
-  document.getElementById('pred-val').textContent=pr==='Home Win'?d.home_team+' Win':pr==='Away Win'?d.away_team+' Win':'Draw';
-  document.getElementById('pred-src').textContent=d.outcome.source||'';
-  document.getElementById('sc-hf').textContent=d.home_flag||'';
-  document.getElementById('sc-af').textContent=d.away_flag||'';
-  document.getElementById('sc-hn').textContent=d.home_team;
-  document.getElementById('sc-an').textContent=d.away_team;
-  document.getElementById('sc-hg').textContent=d.goals?.home_goals??'—';
-  document.getElementById('sc-ag').textContent=d.goals?.away_goals??'—';
-  document.getElementById('st-hg').textContent=d.goals?.home_goals??'—';
-  document.getElementById('st-ag').textContent=d.goals?.away_goals??'—';
   const hgR=d.goals?.home_goals??0, agR=d.goals?.away_goals??0;
-  document.getElementById('st-score').textContent=Math.round(hgR)+' – '+Math.round(agR);
+  document.getElementById('res-hf').textContent=d.home_flag||'';
+  document.getElementById('res-hn').textContent=d.home_team;
+  document.getElementById('res-score').textContent=Math.round(hgR)+' – '+Math.round(agR);
+  document.getElementById('res-af').textContent=d.away_flag||'';
+  document.getElementById('res-an').textContent=d.away_team;
+  document.getElementById('pred-src').textContent=d.outcome.source||'';
   res.scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-// ── Goals ──────────────────────────────────────────────────────────────────
-async function runGoals(){
-  const h=document.getElementById('g-home').value,a=document.getElementById('g-away').value;
-  if(!h||!a){alert('Please select both teams');return}
-  if(h===a){alert('Please select different teams');return}
-  const neutral=document.getElementById('g-neutral').checked;
-  document.getElementById('gs-sp').classList.remove('hidden');
-  try{
-    const d=await api('/api/predict/outcome',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home_team:h,away_team:a,neutral})});
-    const res=document.getElementById('goals-result');
-    res.classList.remove('hidden');
-    const hg=d.goals?.home_goals??0,ag=d.goals?.away_goals??0;
-    document.getElementById('gr-hf').textContent=d.home_flag||'';
-    document.getElementById('gr-af').textContent=d.away_flag||'';
-    document.getElementById('gr-hn').textContent=d.home_team;
-    document.getElementById('gr-an').textContent=d.away_team;
-    document.getElementById('gr-hg').textContent=hg;
-    document.getElementById('gr-ag').textContent=ag;
-    document.getElementById('gr-total').textContent=(+hg+(+ag)).toFixed(2);
-    document.getElementById('gr-he').textContent=d.home_elo;
-    document.getElementById('gr-ae').textContent=d.away_elo;
-    const diff=d.elo_diff;
-    const de=document.getElementById('gr-diff');
-    de.textContent=(diff>0?'+':'')+diff; de.style.color=diff>0?'var(--teal)':diff<0?'var(--amber)':'var(--gray)';
-    document.getElementById('gr-src').textContent=d.goals?.source||'';
-    const up=d.upset?.upset_probability??null;
-    const ue=document.getElementById('gr-up');
-    ue.textContent=up!==null?(up*100).toFixed(1)+'%':'—';
-    ue.style.color=up>0.35?'var(--amber)':'var(--teal)';
-    res.scrollIntoView({behavior:'smooth',block:'nearest'});
-  }catch(e){alert('Error: '+e.message)}
-  finally{document.getElementById('gs-sp').classList.add('hidden')}
 }
 
 // ── Bracket ────────────────────────────────────────────────────────────────
@@ -710,7 +638,7 @@ async function loadEda(){
     <div class="eda-card"><div class="eda-title">Q4 · Top 10 Teams by Win Rate</div><div class="eda-sub">Teams with 50+ matches — Brazil & Argentina lead</div><div class="chart-wrap"><canvas id="ch-wr"></canvas></div></div>
     <div class="eda-card"><div class="eda-title">Q8 · Correlation Heatmap</div><div class="eda-sub">Pearson correlation of key model features — elo_diff is the strongest predictor</div><div class="chart-wrap" style="height:280px"><canvas id="ch-corr"></canvas></div></div>
     <div class="eda-card"><div class="eda-title">Q10 · Upset Rate vs Elo Gap</div><div class="eda-sub">How often does the weaker team win as the Elo gap grows?</div><div class="chart-wrap"><canvas id="ch-upset"></canvas></div></div>
-    <div class="eda-card" style="grid-column:1/-1"><div class="eda-title">Q12 · Elo Distribution by Confederation</div><div class="eda-sub">UEFA & CONMEBOL dominate — validates the Elo engine's confederation separation</div><div class="chart-wrap" style="height:280px"><canvas id="ch-conf"></canvas></div></div>
+    <div class="eda-card" style="grid-column:1/-1"><div class="eda-title">Q12 · Top WC 2026 Teams by Elo</div><div class="eda-sub">Top 12 qualified teams ranked by Elo rating — Spain & Argentina lead</div><div class="chart-wrap" style="height:320px"><canvas id="ch-conf"></canvas></div></div>
   `;
 
   try{
@@ -736,34 +664,30 @@ async function loadEda(){
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,max:100,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Win Rate: ${ctx.parsed.x}%`}}}});
     }
 
-    // Q8 Correlation Heatmap
+    // Q8 Correlation - bar chart of correlations with result
     if(corr.cols&&corr.cols.length){
-      const n=corr.cols.length;
-      const flatData=[];
-      corr.cols.forEach((c,i)=>corr.cols.forEach((r,j)=>{
-        if(i>j) flatData.push({x:r,y:c,v:corr.matrix[i][j]});
-      }));
-      mkChart('ch-corr','scatter',{
-        datasets:[{
-          data:flatData.map(d=>({x:corr.cols.indexOf(d.x),y:corr.cols.indexOf(d.y),v:d.v})),
-          backgroundColor:flatData.map(d=>{
-            const v=d.v; const a=Math.abs(v);
-            return v>0?`rgba(37,99,235,${a})`:`rgba(239,68,68,${a})`;
-          }),
-          pointRadius:flatData.map(()=>18),
-          pointHoverRadius:20,
-        }]
-      },{
-        plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
-          tooltip:{callbacks:{label:ctx=>{
-            const d=flatData[ctx.dataIndex];
-            return `${d.y} × ${d.x}: ${d.v}`;
-          }}}},
-        scales:{
-          x:{ticks:{color:'#9ca3af',font:{size:9},callback:(_,i)=>corr.cols[i]||''},grid:{color:'rgba(255,255,255,.05)'},min:-0.5,max:n-0.5},
-          y:{ticks:{color:'#9ca3af',font:{size:9},callback:(_,i)=>corr.cols[i]||''},grid:{color:'rgba(255,255,255,.05)'},min:-0.5,max:n-0.5},
-        }
-      });
+      const resultIdx=corr.cols.indexOf('result');
+      if(resultIdx>=0){
+        const labels=corr.cols.filter(c=>c!=='result');
+        const vals=labels.map(c=>{
+          const ci=corr.cols.indexOf(c);
+          return corr.matrix[resultIdx][ci];
+        });
+        mkChart('ch-corr','bar',{
+          labels,
+          datasets:[{
+            label:'Correlation with Result',
+            data:vals.map(v=>+v.toFixed(3)),
+            backgroundColor:vals.map(v=>v>0?'rgba(37,99,235,.8)':'rgba(239,68,68,.8)'),
+            borderRadius:4
+          }]
+        },{scales:{...CHART_DEFAULTS.scales,
+          x:{...CHART_DEFAULTS.scales.x,ticks:{...CHART_DEFAULTS.scales.x.ticks,font:{size:9}}},
+          y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Correlation',color:'#9ca3af'}}
+        },plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>`Correlation: ${ctx.parsed.y}`}}
+        }});
+      }
     }
 
     // Q10 Upset Rate
@@ -782,24 +706,22 @@ async function loadEda(){
       },plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Upset Rate: ${ctx.parsed.y}%`}}}});
     }
 
-    // Q12 Elo by Confederation
-    if(conf.confederations&&conf.confederations.length){
-      const cd=conf.confederations;
+    // Q12 - Top WC Teams by Elo (uses existing WC_TEAMS data)
+    const wcSorted=[...WC_TEAMS].sort((a,b)=>b.elo-a.elo).slice(0,12);
+    if(wcSorted.length){
       mkChart('ch-conf','bar',{
-        labels:cd.map(c=>c.conf),
-        datasets:[
-          {label:'Median Elo',data:cd.map(c=>c.median),backgroundColor:cd.map((_,i)=>i===0?'rgba(37,99,235,.9)':i===1?'rgba(245,158,11,.8)':'rgba(147,197,253,.5)'),borderRadius:4},
-          {label:'Q1',data:cd.map(c=>c.q1),backgroundColor:'rgba(0,0,0,0)',borderWidth:0,pointRadius:0},
-          {label:'Q3',data:cd.map(c=>c.q3),backgroundColor:'rgba(0,0,0,0)',borderWidth:0,pointRadius:0},
-        ]
-      },{scales:{...CHART_DEFAULTS.scales,
-        x:{...CHART_DEFAULTS.scales.x},
-        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Elo Rating',color:'#9ca3af'}}
+        labels:wcSorted.map(t=>t.flag+' '+t.name),
+        datasets:[{
+          label:'Elo Rating',
+          data:wcSorted.map(t=>t.elo),
+          backgroundColor:wcSorted.map((_,i)=>i===0?'rgba(245,158,11,.9)':i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.5)'),
+          borderRadius:4
+        }]
+      },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,
+        x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Elo Rating',color:'#9ca3af'}},
+        y:{...CHART_DEFAULTS.scales.y}
       },plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
-        tooltip:{callbacks:{label:ctx=>{
-          const c=cd[ctx.dataIndex];
-          return `Median: ${c.median} | Q1: ${c.q1} | Q3: ${c.q3} | Teams: ${c.count}`;
-        }}}
+        tooltip:{callbacks:{label:ctx=>`Elo: ${ctx.parsed.x}`}}
       }});
     }
 
