@@ -406,7 +406,7 @@ async function loadAllTeams(){
       const sel=document.getElementById(id);
       world.teams.forEach(t=>{
         const o=document.createElement('option');
-        o.value=t.name; o.textContent=`${t.name} (${t.elo})`;
+        o.value=t.name; o.textContent=`${t.flag||''} ${t.name} (${t.elo})`;
         o.dataset.elo=t.elo; o.dataset.flag=t.flag||'';
         sel.appendChild(o);
       });
@@ -448,8 +448,8 @@ async function runPredict(){
 function renderPredict(d){
   const res=document.getElementById('pred-result');
   res.classList.remove('hidden');
-  document.getElementById('r-hf').textContent='';
-  document.getElementById('r-af').textContent='';
+  document.getElementById('r-hf').textContent=d.home_flag||'';
+  document.getElementById('r-af').textContent=d.away_flag||'';
   document.getElementById('r-hn').textContent=d.home_team;
   document.getElementById('r-an').textContent=d.away_team;
   document.getElementById('r-he').textContent='ELO '+d.home_elo;
@@ -470,8 +470,8 @@ function renderPredict(d){
   bn.className='pred-banner '+(pr==='Home Win'?'ph':pr==='Draw'?'pd':'pa');
   document.getElementById('pred-val').textContent=pr==='Home Win'?d.home_team+' Win':pr==='Away Win'?d.away_team+' Win':'Draw';
   document.getElementById('pred-src').textContent=d.outcome.source||'';
-  document.getElementById('sc-hf').textContent='';
-  document.getElementById('sc-af').textContent='';
+  document.getElementById('sc-hf').textContent=d.home_flag||'';
+  document.getElementById('sc-af').textContent=d.away_flag||'';
   document.getElementById('sc-hn').textContent=d.home_team;
   document.getElementById('sc-an').textContent=d.away_team;
   document.getElementById('sc-hg').textContent=d.goals?.home_goals??'—';
@@ -495,8 +495,8 @@ async function runGoals(){
     const res=document.getElementById('goals-result');
     res.classList.remove('hidden');
     const hg=d.goals?.home_goals??0,ag=d.goals?.away_goals??0;
-    document.getElementById('gr-hf').textContent='';
-    document.getElementById('gr-af').textContent='';
+    document.getElementById('gr-hf').textContent=d.home_flag||'';
+    document.getElementById('gr-af').textContent=d.away_flag||'';
     document.getElementById('gr-hn').textContent=d.home_team;
     document.getElementById('gr-an').textContent=d.away_team;
     document.getElementById('gr-hg').textContent=hg;
@@ -555,6 +555,7 @@ function renderBracket(d){
   // Champion card top
   document.getElementById('champ-card-top').innerHTML=`
     <div class="champ-card" style="max-width:320px;margin:0 auto">
+      <span class="champ-flag">${ch.flag||''}</span>
       <div class="champ-lbl">World Cup 2026 Champion</div>
       <div class="champ-name">${ch.team}</div>
     </div>`;
@@ -565,7 +566,7 @@ function renderBracket(d){
       <div class="gh"><div class="gl">Group ${g}</div></div>
       <div class="gt">${teams.map((t,i)=>`
         <div class="gtr"><span style="color:var(--dim);font-size:.75rem;font-weight:700;width:14px">${i+1}</span>
-          <span class="gtn">${t.team}</span>
+          <span>${t.flag||''}</span><span class="gtn">${t.team}</span>
           <span class="elo-chip">${t.pts}pts</span></div>`).join('')}
       </div>
     </div>`).join('');
@@ -596,21 +597,24 @@ function renderBracket(d){
   document.getElementById('bracket-center').innerHTML=`
     <div class="final-title">Final · 07/19 NY</div>
     <div class="champ-card">
+      <span class="champ-flag">${ch.flag||''}</span>
       <div class="champ-lbl">Champion</div>
       <div class="champ-name">${ch.team}</div>
     </div>
     <div class="finalist-row">
       <div class="finalist-card">
+        <div class="finalist-flag">${final.f1||''}</div>
         <div class="finalist-name">${final.t1||''}</div>
       </div>
       <div style="display:flex;align-items:center;color:var(--dim);font-family:'Bebas Neue',sans-serif;font-size:1.2rem">VS</div>
       <div class="finalist-card">
+        <div class="finalist-flag">${final.f2||''}</div>
         <div class="finalist-name">${final.t2||''}</div>
       </div>
     </div>
     ${third?`<div style="margin-top:10px;padding:10px;background:var(--surface);border:1px solid rgba(184,115,51,.3);border-radius:10px;text-align:center">
       <div style="font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:600">3rd Place</div>
-      <div style="font-size:.88rem;font-weight:600;margin-top:4px">${third.winner}</div>
+      <div style="font-size:.88rem;font-weight:600;margin-top:4px">${third.fw||''} ${third.winner}</div>
     </div>`:''}`;
 
   document.getElementById('bracket-result').classList.remove('hidden');
@@ -626,6 +630,7 @@ async function loadGroups(){
         <div class="gh"><div class="gl">Group ${g}</div><div style="font-size:.68rem;color:var(--dim);font-weight:600">${teams.length} Teams</div></div>
         <div class="gt">${teams.map(t=>`
           <div class="gtr" onclick="quickPredict('${t.name}')">
+            <span style="font-size:1.05rem">${t.flag||''}</span>
             <span class="gtn">${t.name}</span>
             <span class="elo-chip">${t.elo}</span>
           </div>`).join('')}
@@ -653,7 +658,7 @@ async function loadRankings(){
       const [tl,tc]=tier(t.elo);
       return`<tr>
         <td><span class="rn">${i+1}</span></td>
-        <td><strong>${t.name}</strong></td>
+        <td><span style="margin-right:5px">${t.flag||''}</span><strong>${t.name}</strong></td>
         <td style="color:var(--amber);font-weight:600">Group ${t.group}</td>
         <td><span class="ev">${t.elo}</span></td>
         <td style="color:var(--gray)">${(t.form*100).toFixed(0)}%</td>
@@ -672,6 +677,7 @@ async function loadMC(){
     document.getElementById('mc-podium').innerHTML=d.results.slice(0,3).map((r,i)=>`
       <div class="pc ${golds[i]}">
         <div class="pm" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--dim)">${medals[i]}</div>
+        <div style="font-size:1.4rem">${r.flag||''}</div>
         <div class="pname">${r.team}</div>
         <div class="pprob">${(r.probability*100).toFixed(1)}%</div>
         <div class="pp-lbl">Win Probability</div>
@@ -679,7 +685,7 @@ async function loadMC(){
     document.getElementById('mc-bars').innerHTML=top15.map((r,i)=>`
       <div class="mbr">
         <div class="mr">${i+1}</div>
-        <div class="mn">${r.team}</div>
+        <div class="mn">${r.flag||''} ${r.team}</div>
         <div class="mt"><div class="mf" data-w="${(r.probability/maxP)*100}" style="width:0%"></div></div>
         <div class="mv">${(r.probability*100).toFixed(1)}%</div>
       </div>`).join('');
@@ -740,7 +746,7 @@ async function loadEda(){
     // Q4 Win rate
     if(wr.teams&&wr.teams.length){
       mkChart('ch-wr','bar',{
-        labels:wr.teams.map(t=>t.team),
+        labels:wr.teams.map(t=>t.flag+' '+t.team),
         datasets:[{label:'Win Rate',data:wr.teams.map(t=>+(t.win_rate*100).toFixed(1)),backgroundColor:wr.teams.map((_,i)=>i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.6)'),borderRadius:4}]
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,max:100,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Win Rate: ${ctx.parsed.x}%`}}}});
     }
@@ -749,7 +755,7 @@ async function loadEda(){
     if(mc.results&&mc.results.length){
       const top=mc.results.slice(0,12);
       mkChart('ch-mc','bar',{
-        labels:top.map(r=>r.team),
+        labels:top.map(r=>(r.flag||'')+' '+r.team),
         datasets:[{label:'Win Probability',data:top.map(r=>+(r.probability*100).toFixed(1)),backgroundColor:top.map((_,i)=>i===0?'rgba(245,158,11,.9)':i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.5)'),borderRadius:4}]
       },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.parsed.x}% chance to win`}}}});
     }
