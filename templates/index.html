@@ -634,98 +634,12 @@ function mkChart(id,type,data,opts={}){
 async function loadEda(){
   const grid=document.getElementById('eda-grid');
   grid.innerHTML=`
-    <div class="eda-card"><div class="eda-title">Q2 · Match Outcome Distribution</div><div class="eda-sub">Home Win / Draw / Away Win percentage across all matches</div><div class="chart-wrap"><canvas id="ch-out"></canvas></div></div>
-    <div class="eda-card"><div class="eda-title">Q4 · Top 10 Teams by Win Rate</div><div class="eda-sub">Teams with 50+ matches — Brazil & Argentina lead</div><div class="chart-wrap"><canvas id="ch-wr"></canvas></div></div>
-    <div class="eda-card"><div class="eda-title">Q8 · Correlation Heatmap</div><div class="eda-sub">Pearson correlation of key model features — elo_diff is the strongest predictor</div><div class="chart-wrap" style="height:280px"><canvas id="ch-corr"></canvas></div></div>
-    <div class="eda-card"><div class="eda-title">Q10 · Upset Rate vs Elo Gap</div><div class="eda-sub">How often does the weaker team win as the Elo gap grows?</div><div class="chart-wrap"><canvas id="ch-upset"></canvas></div></div>
-    <div class="eda-card" style="grid-column:1/-1"><div class="eda-title">Q12 · Top WC 2026 Teams by Elo</div><div class="eda-sub">Top 12 qualified teams ranked by Elo rating — Spain & Argentina lead</div><div class="chart-wrap" style="height:320px"><canvas id="ch-conf"></canvas></div></div>
+    <div class="eda-card"><div class="eda-title">Q2 · Match Outcome Distribution</div><div class="eda-sub">Home Win / Draw / Away Win percentage across all matches</div><img src="/static/eda_plots/02_outcome_distribution.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
+    <div class="eda-card"><div class="eda-title">Q4 · Top 10 Teams by Win Rate</div><div class="eda-sub">Teams with 50+ matches — Brazil & Argentina lead</div><img src="/static/eda_plots/04_top10_win_rate.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
+    <div class="eda-card"><div class="eda-title">Q8 · Correlation Heatmap</div><div class="eda-sub">Pearson correlation of key model features — elo_diff is the strongest predictor</div><img src="/static/eda_plots/08_correlation_heatmap.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
+    <div class="eda-card"><div class="eda-title">Q10 · Upset Rate vs Elo Gap</div><div class="eda-sub">How often does the weaker team win as the Elo gap grows?</div><img src="/static/eda_plots/10_11_upset_and_winrate.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
+    <div class="eda-card"><div class="eda-title">Q12 · Elo Distribution by Confederation</div><div class="eda-sub">UEFA & CONMEBOL dominate — validates the Elo engine's confederation separation</div><img src="/static/eda_plots/12_elo_by_confederation.png" style="width:100%;border-radius:8px;margin-top:8px"></div>
   `;
-
-  try{
-    const [out,wr,corr,upset,conf]=await Promise.all([
-      api('/api/eda/outcomes'),
-      api('/api/eda/winrate'),
-      api('/api/eda/correlation'),
-      api('/api/eda/upset_rate'),
-      api('/api/eda/elo_by_conf'),
-    ]);
-
-    // Q2 Outcomes
-    mkChart('ch-out','doughnut',{
-      labels:['Home Win','Draw','Away Win'],
-      datasets:[{data:[out.home_win,out.draw,out.away_win],backgroundColor:['rgba(37,99,235,.8)','rgba(156,163,175,.8)','rgba(245,158,11,.8)'],borderColor:['#2563eb','#9ca3af','#f59e0b'],borderWidth:2}]
-    },{plugins:{legend:{labels:{color:'#9ca3af',font:{size:12}}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}}});
-
-    // Q4 Win rate
-    if(wr.teams&&wr.teams.length){
-      mkChart('ch-wr','bar',{
-        labels:wr.teams.map(t=>t.flag+' '+t.team),
-        datasets:[{label:'Win Rate',data:wr.teams.map(t=>+(t.win_rate*100).toFixed(1)),backgroundColor:wr.teams.map((_,i)=>i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.6)'),borderRadius:4}]
-      },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,x:{...CHART_DEFAULTS.scales.x,max:100,ticks:{...CHART_DEFAULTS.scales.x.ticks,callback:v=>v+'%'}},y:{...CHART_DEFAULTS.scales.y}},plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Win Rate: ${ctx.parsed.x}%`}}}});
-    }
-
-    // Q8 Correlation - bar chart of correlations with result
-    if(corr.cols&&corr.cols.length){
-      const resultIdx=corr.cols.indexOf('result');
-      if(resultIdx>=0){
-        const labels=corr.cols.filter(c=>c!=='result');
-        const vals=labels.map(c=>{
-          const ci=corr.cols.indexOf(c);
-          return corr.matrix[resultIdx][ci];
-        });
-        mkChart('ch-corr','bar',{
-          labels,
-          datasets:[{
-            label:'Correlation with Result',
-            data:vals.map(v=>+v.toFixed(3)),
-            backgroundColor:vals.map(v=>v>0?'rgba(37,99,235,.8)':'rgba(239,68,68,.8)'),
-            borderRadius:4
-          }]
-        },{scales:{...CHART_DEFAULTS.scales,
-          x:{...CHART_DEFAULTS.scales.x,ticks:{...CHART_DEFAULTS.scales.x.ticks,font:{size:9}}},
-          y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Correlation',color:'#9ca3af'}}
-        },plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
-          tooltip:{callbacks:{label:ctx=>`Correlation: ${ctx.parsed.y}`}}
-        }});
-      }
-    }
-
-    // Q10 Upset Rate
-    if(upset.bins&&upset.bins.length){
-      mkChart('ch-upset','bar',{
-        labels:upset.bins,
-        datasets:[{
-          label:'Upset Rate (%)',
-          data:upset.upset_rate,
-          backgroundColor:upset.bins.map((_,i)=>i<2?'rgba(37,99,235,.8)':i<4?'rgba(245,158,11,.8)':'rgba(239,68,68,.8)'),
-          borderRadius:4
-        }]
-      },{scales:{...CHART_DEFAULTS.scales,
-        x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Elo Gap',color:'#9ca3af'}},
-        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'Upset Rate (%)',color:'#9ca3af'}}
-      },plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Upset Rate: ${ctx.parsed.y}%`}}}});
-    }
-
-    // Q12 - Top WC Teams by Elo (uses existing WC_TEAMS data)
-    const wcSorted=[...WC_TEAMS].sort((a,b)=>b.elo-a.elo).slice(0,12);
-    if(wcSorted.length){
-      mkChart('ch-conf','bar',{
-        labels:wcSorted.map(t=>t.flag+' '+t.name),
-        datasets:[{
-          label:'Elo Rating',
-          data:wcSorted.map(t=>t.elo),
-          backgroundColor:wcSorted.map((_,i)=>i===0?'rgba(245,158,11,.9)':i<3?'rgba(37,99,235,.8)':'rgba(147,197,253,.5)'),
-          borderRadius:4
-        }]
-      },{indexAxis:'y',scales:{...CHART_DEFAULTS.scales,
-        x:{...CHART_DEFAULTS.scales.x,title:{display:true,text:'Elo Rating',color:'#9ca3af'}},
-        y:{...CHART_DEFAULTS.scales.y}
-      },plugins:{...CHART_DEFAULTS.plugins,legend:{display:false},
-        tooltip:{callbacks:{label:ctx=>`Elo: ${ctx.parsed.x}`}}
-      }});
-    }
-
-  }catch(e){console.error('EDA error:',e)}
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
